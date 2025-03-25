@@ -1,71 +1,66 @@
-# 🔐 Configuración de Acceso SSH al Servidor Cloud (CloudGuardian)
+# 🚀 CloudGuardian - Despliegue DevOps
 
-Este documento explica **paso a paso** cómo configurar la conexión SSH, crear un nuevo usuario para despliegue y dejar un servidor Docker + Caddy corriendo un "Hola Mundo" en producción.
-
----
-
-## ☁️ Datos del servidor
-
-| IP               | Usuario por defecto | Contraseña |
-| ---------------- | ------------------- | ---------- |
-| `167.235.155.72` | `admin`             | `1234`     |
+Este repositorio contiene la configuración de despliegue para el proyecto **CloudGuardian**, centrado en crear un sistema de firewall cloud y publicación de datos desde scraping, backend y frontend.
 
 ---
 
-## 1️⃣ Generar una clave SSH en local (Windows)
+## 📁 Estructura del proyecto
 
-Desde **PowerShell** o **Git Bash**:
+cloudguardian-deploy/ 
+├── deploy/ # Parte de DevOps 
+│ ├── Dockerfile 
+│ ├── caddy_config.json
+│ └── www/ 
+│ └── index.html 
+├── backend/ # Backend Django (por añadir) 
+├── frontend/ # Frontend React (por añadir) 
+└── README.md
 
-ssh-keygen -t ed25519 -C "icg0012@alu.medac.es"
 
-Get-Content $env:USERPROFILE\.ssh\id_ed25519.pub
-obtenere clave publica
+---
+
+## 🔐 Parte DevOps (completada)
+
+> Configuración desde cero de un servidor Ubuntu Cloud:
+
+- [x] Acceso mediante SSH con clave pública (`ed25519`)
+- [x] Creación de usuario `despliegue`
+- [x] Copia de la clave SSH a `despliegue`
+- [x] Instalación de Docker
+- [x] Ejecución de contenedor Docker con **Caddy** (Hola Mundo)
+- [x] Creación de archivo `Dockerfile`
+- [x] Creación de archivo `caddy_config.json`
+- [x] Creación y subida a rama `produccion` en GitHub
+
+---
+
+## 🌐 Despliegue actual
+
+- Se ha desplegado un contenedor en el puerto `80`  que muestra un "Hola Mundo" desde `/www/index.html`
+- Caddy se utiliza como servidor web dentro de Docker
+
+---
+
+## 🚧 Próximos pasos
+
+- [ ] Crear interfaz con Django para editar `caddy_config.json` desde web
+- [ ] Añadir el backend completo al directorio `backend/`
+- [ ] Añadir frontend (React) al directorio `frontend/`
+- [ ] Automatizar despliegue con GitHub Actions o scripts de CI/CD
+
+---
+
+## 👥 Autores
+
+- Ian Camps – DevOps, estructura base y despliegue
 
 
+---
 
-# Cloud Firewall - Proyecto Full Stack
+## 🔗 Repositorio
 
-## Descripción del proyecto
-Cloud Firewall es una aplicación web que simula un sistema básico tipo Cloudflare. Ofrece protección, visualización y control del tráfico web con reglas, estadísticas y monitoreo.
+> URL del proyecto:  
+https://github.com/Iancamps/cloudguardian-deploy
 
-## Funcionalidades principales
-- 🔒 Reglas de firewall por IP, país o tipo de tráfico.
-- 📊 Estadísticas y logs en tiempo real.
-- 🚨 Modo seguro para bloquear tráfico sospechoso.
-- 👥 Gestión de usuarios y roles.
-- 🖥️ Panel de control responsivo.
-- 📈 Integración con herramientas de monitoreo.
-
-## Tecnologías utilizadas
-### Frontend
-- React.js
-- Bootstrap o Tailwind
-- Chart.js
-
-### Backend
-- Django (REST Framework)
-- PostgreSQL
-- Celery + Redis
-
-### DevOps
-- Docker & Docker Compose
-- GitHub Actions
-- NGINX + Gunicorn
-- Kubernetes (opcional)
-
-## Instalación
-1. Clonar el repositorio.
-2. Crear entorno virtual y activar.
-3. Instalar dependencias.
-4. Configurar variables de entorno.
-5. Ejecutar `docker-compose up`.
-
-## Uso
-- Acceder al panel: `localhost:8000/dashboard`
-- Crear reglas, ver tráfico y estadísticas.
-
-## Créditos
-Desarrollado por Ian Camps.
-
-## Licencia
-MIT License.
+> Rama de producción:  
+https://github.com/Iancamps/cloudguardian-deploy/tree/produccion
