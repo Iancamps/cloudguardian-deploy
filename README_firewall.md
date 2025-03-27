@@ -4,20 +4,8 @@
 
 ---
 
-## 🔐 Configuración de Acceso SSH al Servidor
 
-| IP del servidor  | Usuario por defecto | Contraseña inicial |
-| ---------------- | ------------------- | ------------------ |
-| `167.235.155.72` | `admin`             | `1234`             |
 
----
-
-### 1️⃣ Generar clave SSH (en local)
-
-```bash
-ssh-keygen -t ed25519 -C "icg0012@alu.medac.es"
-Get-Content $env:USERPROFILE\.ssh\id_ed25519.pub
-```
 
 ---
 
@@ -39,11 +27,11 @@ Get-Content $env:USERPROFILE\.ssh\id_ed25519.pub
 - React.js (con Vite)
 - TailwindCSS (modo oscuro 🔴🖤)
 - React Router Dom
-- Iconografía Lucide y animaciones Framer Motion
+
 
 ### 🧠 Backend
 - Django + Django REST Framework
-- PostgreSQL
+- Mysql
 - Edición de configuración vía panel
 
 ### 🔧 DevOps
@@ -66,24 +54,14 @@ root/
 
 ---
 
-## 🛠️ Instalación local
-
-```bash
-git clone https://github.com/iancamps/cloudguardian.git
-cd cloudguardian
-# Configuración de entorno virtual, backend y frontend aquí...
-docker compose up --build
 ```
 
 Accede a: [http://localhost:8000](http://localhost:8000) o IP en cloud.
 
 ---
 
-## 👨‍💻 Desarrollador
-**Ian Camps** · Full Stack Dev y Ninja DevOps 🥷
+
 
 ---
 
-## 📄 Licencia
-MIT License.
 
