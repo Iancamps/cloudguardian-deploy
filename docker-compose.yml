@@ -1,18 +1,31 @@
-version: '3.9'
 
 services:
   django:
+    container_name: django
     build:
       context: ./backend
-    ports:
-      - "8000:8000"
     volumes:
       - ./backend:/app
-    command: python manage.py runserver 0.0.0.0:8000
+      - ./deploy/caddy.json:/etc/caddy/caddy.json  # Volumen compartido
+    expose:
+      - "8000"  # Solo accesible desde otros contenedores
+
+  frontend:
+    container_name: frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile  
+    expose:
+      - "80"  # Servido por Nginx, solo interno
 
   caddy:
-    image: caddy:alpine
+    container_name: caddy
+    build:
+      context: ./deploy
+      dockerfile: Dockerfile.caddy
     ports:
-      - "80:80"
+      - "80:80"  # ¡Ahora todo va por aquí!
     volumes:
-      - ./deploy/Caddyfile:/etc/caddy/Caddyfile
+      - ./deploy/caddy.json:/etc/caddy/caddy.json
+
+
