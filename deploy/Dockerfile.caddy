@@ -1,0 +1,18 @@
+# Etapa de compilación con plugin rate-limit y adaptador JSON
+FROM caddy:builder AS builder
+
+RUN xcaddy build \
+    --with github.com/mholt/caddy-ratelimit \
+    --with github.com/caddyserver/jsonc-adapter
+
+# Imagen final con Caddy personalizado
+FROM caddy:alpine
+
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+COPY caddy_config.json /etc/caddy/caddy.json
+
+# ✅ ESTA LÍNEA ES LA CORRECTA
+CMD ["caddy", "run", "--config", "/etc/caddy/caddy.json", "--adapter", "json"]
+
+
+
