@@ -10,8 +10,8 @@ const router = createBrowserRouter([
             {
                 path: "/",
                 element: <Home />,
-                // { path: "/login", element: <Login /> }, etc
             },
+            // aquí irán más páginas luego
         ],
     },
 ]);
