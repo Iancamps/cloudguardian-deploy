@@ -37,8 +37,9 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'rest_framework',
-    'cloudguardian',
+    'rest_framework', # agregamos drf
+    'cloudguardian', # agregamos nuestra app
+    'rest_framework.authtoken', # agregamos la autenticacion por token
 ]
 
 MIDDLEWARE = [
@@ -123,3 +124,10 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# PARA QUE USER POR DEFECTO LA AUTENTICACION POR TOKEN 
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+}
