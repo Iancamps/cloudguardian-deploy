@@ -4,17 +4,20 @@ services:
     container_name: django
     build:
       context: ./backend
+    ports:
+      - "8000:8000"
     volumes:
       - ./backend:/app
-      - ./deploy/caddy.json:/etc/caddy/caddy.json  # Volumen compartido
-    expose:
-      - "8000"  # Solo accesible desde otros contenedores
+      - ./deploy/caddy.json:/etc/caddy/caddy.json  # Volumen compartido par el reload
+    environment:
+      - CADDY_ADMIN=http://caddy:2019
+    
 
   frontend:
     container_name: frontend
     build:
       context: ./frontend
-      dockerfile: Dockerfile  
+      dockerfile: Dockerfile  # Este debe ser el de producción con build Vite + Nginx
     expose:
       - "80"  # Servido por Nginx, solo interno
 
@@ -24,7 +27,8 @@ services:
       context: ./deploy
       dockerfile: Dockerfile.caddy
     ports:
-      - "80:80"  # ¡Ahora todo va por aquí!
+      - "80:80"  # caddy sirve todo aqui
+      - "2019:2019"
     volumes:
       - ./deploy/caddy.json:/etc/caddy/caddy.json
 
