@@ -42,10 +42,10 @@ def caddy_config_view(request): # definimos la funcion que va a leer o modificar
 
             #  Intentamos recargar Caddy automáticamente 
             try:
-                response = requests.post("http://caddy:2019/load", json={
-                    "config": new_config,
-                    "adapter": "json"
-                })
+                response = requests.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
+
+
+
                 if response.status_code != 200:
                     return Response({'warning': 'Configuración guardada, pero Caddy no se recargó automáticamente.'}, status=status.HTTP_202_ACCEPTED)
 

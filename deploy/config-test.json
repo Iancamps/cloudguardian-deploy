@@ -14,7 +14,7 @@
                             "handle": [
                                 {
                                     "handler": "static_response",
-                                    "body": " holaaaaaaaaaaaaaaaaaaaaaa Configuraci\u00f3n de prueba funcionando desde PUT!"
+                                    "body": " holaaaaaaaaaaaaaaaaaaaaaa Configuración de prueba funcionando desde PUT!"
                                 }
                             ]
                         }
