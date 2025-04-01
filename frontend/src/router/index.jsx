@@ -20,6 +20,8 @@ const router = createBrowserRouter([
             { path: "/configuracion", element: <Configuracion /> },
             { path: "/ips-bloqueadas", element: <IpsBloqueadas /> },
             { path: "/rutas-protegidas", element: <RutasProtegidas /> },
+            { path: "/register", element: <Register /> },
+            
         ],
     },
 ]);
