@@ -1,3 +1,4 @@
+import requests
 from rest_framework.decorators import api_view # convierte la función de vista en una vista basada en función de Django REST Framework
 from rest_framework.decorators import permission_classes # se usa para definir las reglas de permisos para una vista
 from rest_framework.permissions import IsAuthenticatedOrReadOnly # la vista solo permite escrituras (PUT) a los usuarios autenticados, pero permite lecturas (GET) a los usuarios no autenticados.
@@ -65,10 +66,9 @@ def logout_view(request):
         if not token:
             return Response({'error': 'No se proporcionó token en la solicitud'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Eliminar el prefijo 'Token ' del token que viene en el header.
-        token = token.split(':')[1]
-        token = token.replace('"', '')
-        token = token.replace(' ', '')
+        # CORRECTO: quitar "Token " del principio
+        token = token.replace("Token ", "").replace('"', '').strip()
+        
         # Buscar el token en la base de datos.
         user_token = Token.objects.get(key=token)
 
@@ -111,7 +111,7 @@ def caddy_config_view(request): # definimos la funcion que va a leer o modificar
 
             #  Intentamos recargar Caddy automáticamente 
             try:
-                response = request.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
+                response = requests.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
 
 
 

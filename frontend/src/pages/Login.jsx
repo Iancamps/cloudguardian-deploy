@@ -1,13 +1,33 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const Login = () => {
     const [usuario, setUsuario] = useState("");
     const [password, setPassword] = useState("");
+    const [error, setError] = useState("");
+    const navigate = useNavigate();
 
-    const handleSubmit = (e) => {
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        if (token) {
+            navigate("/"); // redirige a home si ya está logueado
+        }
+    }, [navigate]);
+
+    const handleSubmit = async (e) => {
         e.preventDefault();
-        // Aquí luego se conecta con el backend
-        console.log("Intentando login con:", { usuario, password });
+        try {
+            const res = await axios.post("/api/token/", {
+                username: usuario,
+                password: password,
+            });
+
+            localStorage.setItem("token", res.data.token);
+            navigate("/");
+        } catch (err) {
+            setError("Usuario o contraseña incorrectos");
+        }
     };
 
     return (
@@ -16,7 +36,7 @@ const Login = () => {
                 onSubmit={handleSubmit}
                 className="bg-gray-900 p-8 rounded-lg shadow-lg w-full max-w-md"
             >
-                <h2 className="text-2xl font-bold mb-6 text-center"> Iniciar sesión</h2>
+                <h2 className="text-2xl font-bold mb-6 text-center">Iniciar sesión</h2>
 
                 <label className="block mb-2">Usuario</label>
                 <input
@@ -35,6 +55,8 @@ const Login = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                 />
+
+                {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
 
                 <button
                     type="submit"

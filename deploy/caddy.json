@@ -11,10 +11,44 @@
                     ],
                     "routes": [
                         {
+                            "match": [
+                                {
+                                    "path": [
+                                        "/api/*"
+                                    ]
+                                }
+                            ],
                             "handle": [
                                 {
-                                    "handler": "static_response",
-                                    "body": " holaaaaaaaaaaaaaaaaaaaaaa Configuraci\u00f3n de prueba funcionando desde PUT!"
+                                    "handler": "reverse_proxy",
+                                    "upstreams": [
+                                        {
+                                            "dial": "django:8000"
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        {
+                            "match": [
+                                {
+                                    "not": [
+                                        {
+                                            "path": [
+                                                "/api/*"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ],
+                            "handle": [
+                                {
+                                    "handler": "rewrite",
+                                    "uri": "/index.html"
+                                },
+                                {
+                                    "handler": "file_server",
+                                    "root": "/usr/share/nginx/html"
                                 }
                             ]
                         }
