@@ -7,6 +7,7 @@ import RutasProtegidas from "../pages/RutasProtegidas";
 import Login from "../pages/Login";
 import PrivateRoute from "../components/PrivateRoute";
 import Perfil from "../pages/Perfil";
+import Register from '../pages/Register';
 
 
 const router = createBrowserRouter([
@@ -14,6 +15,10 @@ const router = createBrowserRouter([
     {
         path: "/login",
         element: <Login />,
+    },
+    {
+        path: "/register", 
+        element: <Register />,
     },
     {
         path: "/",
@@ -24,8 +29,6 @@ const router = createBrowserRouter([
             { path: "/ips-bloqueadas", element: <PrivateRoute><IpsBloqueadas /></PrivateRoute> },
             { path: "/rutas-protegidas", element: <PrivateRoute><RutasProtegidas /></PrivateRoute> },
             { path: "/perfil", element: <PrivateRoute><Perfil /></PrivateRoute> },
-            { path: "/register", element: <Register /> },
-            
         ],
     },
 ]);

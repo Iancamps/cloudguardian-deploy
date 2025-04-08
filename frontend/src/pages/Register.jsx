@@ -1,19 +1,27 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
 
 export default function Register() {
     const [username, setUsername] = useState('');
     const [password1, setPassword1] = useState('');
     const [password2, setPassword2] = useState('');
     const [message, setMessage] = useState('');
+    const navigate = useNavigate();
 
     const handleRegister = () => {
-        axios.post('/api/register', {
+        if (password1 !== password2) {
+            setMessage("Las contraseñas no coinciden");
+            return;
+        }
+
+        axios.post('/register', {
             username,
             password1,
             password2
         }).then(res => {
             setMessage('Registro exitoso');
+            setTimeout(() => navigate("/login"), 1500);
         }).catch(err => {
             setMessage('Error en el registro');
         });

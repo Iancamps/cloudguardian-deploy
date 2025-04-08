@@ -30,25 +30,13 @@
                             ]
                         },
                         {
-                            "match": [
-                                {
-                                    "not": [
-                                        {
-                                            "path": [
-                                                "/api/*"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            ],
                             "handle": [
                                 {
-                                    "handler": "rewrite",
-                                    "uri": "/index.html"
-                                },
-                                {
                                     "handler": "file_server",
-                                    "root": "/usr/share/nginx/html"
+                                    "root": "/srv",
+                                    "index_names": [
+                                        "index.html"
+                                    ]
                                 }
                             ]
                         }
