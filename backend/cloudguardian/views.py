@@ -1,3 +1,4 @@
+import requests
 from rest_framework.decorators import api_view # convierte la función de vista en una vista basada en función de Django REST Framework
 from rest_framework.decorators import permission_classes # se usa para definir las reglas de permisos para una vista
 from rest_framework.permissions import IsAuthenticatedOrReadOnly # la vista permite escrituras (PUT) a los autenticados, pero permite solo lecturas (GET) a los usuarios no autenticados
@@ -127,7 +128,13 @@ def logout_view(request): # ❌❌❌ Define la funcion para cerrar sesion de us
         token = token.replace('"', '') # reemplazamos las comillas por nada
         token = token.replace(' ', '') # reemplazamos los espacios por nada
 
+
+        # CORRECTO: quitar "Token " del principio
+        token = token.replace("Token ", "").replace('"', '').strip()
+      
+
         user_token = Token.objects.get(key=token) # buscar el token en la base de datos.
+
 
         user_token.delete()  # borrar el token del usuario
 
@@ -172,7 +179,7 @@ def caddy_config_view(request): # definimos la funcion que va a leer o modificar
 
             # 🟡🟡🟡 Intentamos recargar Caddy automáticamente 🟡🟡🟡
             try:
-                response = request.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
+                response = requests.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
 
                 if response.status_code != 200:
                     return Response({'warning': 'Configuración guardada, pero Caddy no se recargó automáticamente.'}, status=status.HTTP_202_ACCEPTED)
@@ -325,7 +332,7 @@ class AddRoutes(APIView): # ✅ clase para añadir rutas protegidas ✅
             return Response({"error":"Ha ocurrido algún error en el proceso."}, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class DeleteRoutes(APIView): # ❌ clase para eliminar rutas protegidas ❌
-    
+  
     def post(self, request): # definimos la funcion que recibe la peticion mediante el metodo post
         
         delete_path = request.data.get("path") # recibe el path de la peticion

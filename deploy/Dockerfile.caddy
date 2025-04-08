@@ -1,19 +1,10 @@
-# Compilación de Caddy con plugin de rate-limit
-FROM caddy:builder AS builder
-
-RUN xcaddy build \
-    --with github.com/mholt/caddy-ratelimit
-
-# Imagen final
+# Dockerfile.caddy (dentro de ./deploy)
 FROM caddy:alpine
 
-COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 COPY caddy.json /etc/caddy/caddy.json
+COPY www /srv
 
-# Usa caddy.JSON 
 CMD ["caddy", "run", "--config", "/etc/caddy/caddy.json"]
-
-
 
 
 
