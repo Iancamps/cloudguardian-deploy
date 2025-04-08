@@ -30,6 +30,43 @@
                             ]
                         },
                         {
+                            "match": [
+                                {
+                                    "path": [
+                                        "/assets/*",
+                                        "/vite.svg"
+                                    ]
+                                }
+                            ],
+                            "handle": [
+                                {
+                                    "handler": "file_server",
+                                    "root": "/srv"
+                                }
+                            ]
+                        },
+                        {
+                            "match": [
+                                {
+                                    "not": [
+                                        {
+                                            "path": [
+                                                "/api/*",
+                                                "/assets/*",
+                                                "/vite.svg"
+                                            ]
+                                        }
+                                    ]
+                                }
+                            ],
+                            "handle": [
+                                {
+                                    "handler": "rewrite",
+                                    "uri": "/index.html"
+                                }
+                            ]
+                        },
+                        {
                             "handle": [
                                 {
                                     "handler": "file_server",

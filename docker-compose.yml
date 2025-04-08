@@ -7,8 +7,10 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
+      - ./deploy/caddy.json:/etc/caddy/caddy.json:rw  # permite acceso desde Django
     environment:
       - CADDY_ADMIN=http://caddy:2019
+    
 
   caddy:
     container_name: caddy

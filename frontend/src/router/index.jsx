@@ -24,7 +24,7 @@ const router = createBrowserRouter([
         path: "/",
         element: <MainLayout />,
         children: [
-            { path: "/", element: <PrivateRoute><Home /></PrivateRoute> },
+            { path: "/home", element: <PrivateRoute><Home /></PrivateRoute> },
             { path: "/configuracion", element: <PrivateRoute><Configuracion /></PrivateRoute> },
             { path: "/ips-bloqueadas", element: <PrivateRoute><IpsBloqueadas /></PrivateRoute> },
             { path: "/rutas-protegidas", element: <PrivateRoute><RutasProtegidas /></PrivateRoute> },
