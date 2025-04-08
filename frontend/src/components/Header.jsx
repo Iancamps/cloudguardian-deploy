@@ -10,20 +10,23 @@ const Header = () => {
         setLogueado(!!token);
     }, []);
 
-    const handleLogout = async () => {
-        try {
-            await fetch("/api/login/logout/", {
-                method: "POST",
-                headers: {
-                    Authorization: `Token ${localStorage.getItem("token")}`,
-                },
+    const handleLogout = () => {
+        fetch("/login/logout/", {
+            method: "POST",
+            headers: {
+                Authorization: `Token ${localStorage.getItem("token")}`,
+            },
+        })
+            .then(() => {
+                // Si todo va bien, limpiamos y redirigimos
+                localStorage.removeItem("token");
+                navigate("/login");
+            })
+            .catch((error) => {
+                console.warn("Error cerrando sesión", error);
+                localStorage.removeItem("token");
+                navigate("/login");
             });
-        } catch (error) {
-            console.warn("Error cerrando sesión", error);
-        } finally {
-            localStorage.removeItem("token");
-            navigate("/login");
-        }
     };
 
     return (

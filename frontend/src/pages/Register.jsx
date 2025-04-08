@@ -17,7 +17,7 @@ export default function Register() {
             return;
         }
 
-        axios.post('/api/register', {
+        axios.post('/register', {
             username,
             password1,
             password2

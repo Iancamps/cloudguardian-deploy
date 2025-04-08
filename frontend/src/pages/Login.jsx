@@ -15,20 +15,22 @@ const Login = () => {
         }
     }, [navigate]);
 
-    const handleSubmit = async (e) => {
+    const handleSubmit = (e) => {
         e.preventDefault();
-        try {
-            const res = await axios.post("/login/", {
-                username: usuario,
-                password: password,
-            });
 
-            localStorage.setItem("token", res.data.token);
-            navigate("/");
-        } catch (err) {
-            setError("Usuario o contraseña incorrectos");
-        }
+        axios.post("/login/", {
+            username: usuario,
+            password: password,
+        })
+            .then(res => {
+                localStorage.setItem("token", res.data.token);
+                navigate("/");
+            })
+            .catch(() => {
+                setError("Usuario o contraseña incorrectos");
+            });
     };
+
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-950 text-white">
