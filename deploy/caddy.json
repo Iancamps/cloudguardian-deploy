@@ -1,31 +1,54 @@
 {
     "admin": {
-        "listen": "0.0.0.0:2019"
+        "listen": "167.235.155.72:2019"
     },
     "apps": {
         "http": {
             "servers": {
-                "srv0": {
+                "Cloud_Guardian": {
                     "listen": [
                         ":80"
                     ],
+                    "timeouts": {
+                        "read_header_timeout": "15s",
+                        "idle_timeout": "5m",
+                        "write_timeout": "15s",
+                        "header_timeout": "10s"
+                    },
+                    "max_connections": 50,
+                    "max_requests_per_connection": 20,
                     "routes": [
                         {
                             "match": [
                                 {
                                     "path": [
-                                        "/api/*"
+                                        "/login"
                                     ]
                                 }
                             ],
                             "handle": [
                                 {
-                                    "handler": "reverse_proxy",
-                                    "upstreams": [
-                                        {
-                                            "dial": "django:8000"
+                                    "handler": "rate_limit",
+                                    "rate_limit": {
+                                        "requests": 3,
+                                        "window": "1m"
+                                    }
+                                },
+                                {
+                                    "handler": "authenticate",
+                                    "basic": {
+                                        "users": {
+                                            "admin": "1234",
+                                            "Alberto": "5678",
+                                            "Ian": "9123",
+                                            "Jose": "4567",
+                                            "Jaime": "8901"
                                         }
-                                    ]
+                                    }
+                                },
+                                {
+                                    "handler": "static_response",
+                                    "body": "Acceso a /login concedido"
                                 }
                             ]
                         },
@@ -33,50 +56,29 @@
                             "match": [
                                 {
                                     "path": [
-                                        "/assets/*",
-                                        "/vite.svg"
+                                        "/"
                                     ]
                                 }
                             ],
                             "handle": [
                                 {
-                                    "handler": "file_server",
-                                    "root": "/srv"
-                                }
-                            ]
-                        },
-                        {
-                            "match": [
-                                {
-                                    "not": [
-                                        {
-                                            "path": [
-                                                "/api/*",
-                                                "/assets/*",
-                                                "/vite.svg"
-                                            ]
-                                        }
-                                    ]
-                                }
-                            ],
-                            "handle": [
-                                {
-                                    "handler": "rewrite",
-                                    "uri": "/index.html"
-                                }
-                            ]
-                        },
-                        {
-                            "handle": [
-                                {
-                                    "handler": "file_server",
-                                    "root": "/srv",
-                                    "index_names": [
-                                        "index.html"
-                                    ]
+                                    "handler": "static_response",
+                                    "body": "P\u00e1gina principal accesible para IPs permitidas"
                                 }
                             ]
                         }
+                    ]
+                }
+            },
+            "security": {
+                "remote_ip": {
+                    "allow": [
+                        "100.10.10.1",
+                        "192.168.1.100"
+                    ],
+                    "deny": [
+                        "0.0.0.0/0",
+                        "192.168.0.0/24"
                     ]
                 }
             }
