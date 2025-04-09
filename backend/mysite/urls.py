@@ -4,5 +4,5 @@ from django.urls import path, include
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', include("cloudguardian.urls")), # incluimos todas las urls de nuestra app 
+    path('api/', include("cloudguardian.urls")), # incluimos todas las urls de nuestra app 
 ]

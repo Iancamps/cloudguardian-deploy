@@ -16,18 +16,21 @@ jobs:
       - name:  Iniciar sesión SSH con clave secreta
         uses: webfactory/ssh-agent@v0.7.0
         with:
-          ssh-private-key: ${{ secrets.DEPLOY_KEY }}
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
       - name:  Subir proyecto al servidor
         run: |
-          rsync -avz --delete ./ ian@${{ secrets.SERVER_IP }}:~/apps/cloudguardian/
+          rsync -avz --exclude '.git' --exclude 'node_modules' ./ ian@167.235.155.72:/home/ian/cloudguardian
 
-      - name:  Levantar contenedores con Docker Compose
+      - name:  Ejecutar despliegue en el servidor
         run: |
-          ssh ian@${{ secrets.SERVER_IP }} << 'EOF'
-            cd ~/apps/cloudguardian
-            docker-compose down
-            docker-compose up -d --build
+          ssh ian@167.235.155.72 << 'EOF'
+          cd /home/ian/cloudguardian
+          docker-compose down -v
+          docker system prune -f
+          docker-compose build --no-cache
+          docker-compose up -d
+          exit
           EOF
 
   

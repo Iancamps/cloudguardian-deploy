@@ -7,10 +7,8 @@ services:
       - "8000:8000"
     volumes:
       - ./backend:/app
-      - ./deploy/caddy.json:/etc/caddy/caddy.json:rw  # permite acceso desde Django
     environment:
       - CADDY_ADMIN=http://caddy:2019
-    
 
   caddy:
     container_name: caddy
@@ -20,5 +18,8 @@ services:
     ports:
       - "80:80"
       - "2019:2019"
+    volumes:
+      - ./deploy/Caddyfile.conf:/etc/caddy/Caddyfile  
+      - ./deploy/www:/srv
     depends_on:
       - django

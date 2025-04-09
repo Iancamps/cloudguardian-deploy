@@ -11,7 +11,7 @@ const Header = () => {
     }, []);
 
     const handleLogout = () => {
-        fetch("/login/logout/", {
+        fetch("/api/login/logout/", {
             method: "POST",
             headers: {
                 Authorization: `Token ${localStorage.getItem("token")}`,

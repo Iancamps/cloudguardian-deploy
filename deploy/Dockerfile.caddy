@@ -1,10 +1,9 @@
 # Dockerfile.caddy (dentro de ./deploy)
-FROM caddy:alpine
+FROM caddy:2.7.6-alpine
 
-COPY caddy.json /etc/caddy/caddy.json
+COPY Caddyfile /etc/caddy/Caddyfile
 COPY www /srv
 
-CMD ["caddy", "run", "--config", "/etc/caddy/caddy.json"]
 
 
 

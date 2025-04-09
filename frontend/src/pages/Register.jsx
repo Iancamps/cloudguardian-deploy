@@ -17,10 +17,9 @@ export default function Register() {
             return;
         }
 
-        axios.post('/register', {
+        axios.post('/api/register/', {
             username,
-            password1,
-            password2
+            password: password1 // solo password, como espera el backend
         })
             .then(res => {
                 setMessage('Registro exitoso');
