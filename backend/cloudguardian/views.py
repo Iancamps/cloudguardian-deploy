@@ -1,5 +1,12 @@
+import os
+import django
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mysite.settings")
+django.setup()
+
 from rest_framework.decorators import api_view # convierte la función de vista en una vista basada en función de Django REST Framework
 from rest_framework.decorators import permission_classes # se usa para definir las reglas de permisos para una vista
+from rest_framework.decorators import authentication_classes
 from rest_framework.permissions import IsAuthenticatedOrReadOnly # la vista permite escrituras (PUT) a los autenticados, pero permite solo lecturas (GET) a los usuarios no autenticados
 from rest_framework.authentication import TokenAuthentication # esto es para usar la autenticacion por token
 from rest_framework.permissions import IsAuthenticated # esto es para darle solo los permisos a los autenticados
@@ -8,10 +15,11 @@ from rest_framework.authtoken.models import Token # almacena los tokens de auten
 from rest_framework.response import Response # encapsula la respuesta que se enviará al cliente, siguiendo el formato adecuado (JSON).
 from rest_framework import status # contiene códigos de estado HTTP estándar
 import json # para poder manejar archivos .json
-import os # para interactuar con el sistema operativo
 from rest_framework import request
 from .serializers import UserRegisterSerializer
 from rest_framework.views import APIView #  clase base para crear vistas de drf
+from .models import UserJSON # importamos el modelo para el json se cada usuario
+
 
 # 🔵🔵🔵 RUTAS NECESARIAS 🔵🔵🔵
 
@@ -20,41 +28,54 @@ JSON_PATH = os.path.join(BASE_DIR, "..", "deploy", "caddy.json") # Eso construye
 
 # 🟢🟢🟢 ESTA ES LA CLASE Y FUNCION PARA REGISTRAR USUARIOS 🟢🟢🟢
 
-class RegisterUserView(APIView): # Creamos la vista que hereda de APIView, lo que significa que esta vista manejará peticiones HTTP como POST
+class Register(APIView): # Creamos la vista que hereda de APIView, lo que significa que esta vista manejará peticiones HTTP como POST
     
     def post(self, request):
+        
+        username = request.data.get("username") # obtenemos el nombre de usuario
+        password = request.data.get("password") # obtenemos la contraseña
         
         serializer = UserRegisterSerializer(data = request.data) # creamos una instancia de UserRegisterSerializer y le pasamos los datos que vienen en la petición (request.data)
         
         if serializer.is_valid(): # Verificamos si los datos enviados son válidos, es decir, si cumplen con las reglas del serializador
-            serializer.save() # Llamamos a serializer.save(), que a su vez ejecutará el método create que definimos en el serializador, creando un usuario en la base de datos.
+            user = serializer.save() # Llamamos a serializer.save(), que a su vez ejecutará el método create que definimos en el serializador, creando un usuario en la base de datos y le pasamos los datos a la variable user
             
-            # Agregamos el nuevo usuario ya validado en la base de datos y guardado al json
-            user = request.data.get("username") # obtenemos el nombre de usuario
-            password = request.data.get("password") # obtenemos la contraseña
-            
-            with open(JSON_PATH, "r+", encoding='utf-8') as f:
+            user_json_path = os.path.join(BASE_DIR, f"caddy_{user.username}.json") # creamos la ruta para el JSON de la base de datos
+
+            try:
                 
-                data = json.load(f) # cargamos el archivo en la variable data
-                
-                users = data["apps"]["http"]["servers"]["Cloud_Guardian"]["routes"][0]["handle"][1]["basic"]["users"] # accedemos a la sección de usuarios del json
-                
-                users[user] = password # agregamos el usuario nuevo
-    
-                # Sobreescribir el archivo JSON con los nuevos datos
-                f.seek(0)  # Ir al inicio del archivo
-                json.dump(data, f, indent=4) # dumpeamos los datos
-                f.truncate()  # Ajustar el tamaño del archivo
-            
-            return Response({"message": "Usuario registrado exitosamente"}, status = status.HTTP_201_CREATED) # Si va bien, respondemos con un mensaje JSON y el código 201
+                with open(JSON_PATH, "r", encoding='utf-8') as f:
+                    data_base = json.load(f) # cargamos los datos en una variable
+
+                with open(user_json_path, "w", encoding="utf-8") as f: # creamos una copia con la ruta que definimos antes
+                    json.dump(data_base, f, indent=4) # dumpeamos los datos del JSON base al JSON del usuario nuevo
+                    
+                with open(user_json_path, "r+", encoding='utf-8') as f:
+                    data = json.load(f) # cargamos el archivo en la variable data
+                    
+                    users = data["apps"]["http"]["servers"]["Cloud_Guardian"]["routes"][0]["handle"][1]["basic"]["users"] # accedemos a la sección de usuarios del json
+                    
+                    users[username] = password # añadimos el usuario del json
         
-        return Response(serializer.errors, status = status.HTTP_400_BAD_REQUEST) # Si los datos no son válidos, devolvemos los errores y un código 400 Bad Request
+                    # Sobreescribir el archivo JSON con los nuevos datos
+                    f.seek(0)  # Ir al inicio del archivo
+                    json.dump(data, f, indent = 4) # dumpeamos los datos
+                    f.truncate()  # Ajustar el tamaño del archivo
+
+                    UserJSON.objects.create(user = user, json_data = data_base) # guardamos el nuevo JSON en la base de datos
+
+            except:
+                return Response({"error": f"Error al crear el archivo JSON"}, status = status.HTTP_500_INTERNAL_SERVER_ERROR) # si pasa algo en el proceso mandamos un msg y un codigo de estado
+
+            return Response({"message": "Usuario registrado y JSON generado"}, status = status.HTTP_201_CREATED) # si todo va bien devolvemos esto
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 # 🔴🔴🔴 CLASE Y FUNCION PARA ELIMINAR USUARIOS DE LA BASE DE DATOS 🔴🔴🔴
 
 from django.contrib.auth.models import User # importamos el modelo de usuario
 
-class UserDeleteView(APIView): # definimos la clase para eliminar usuarios
+class UserDelete(APIView): # definimos la clase para eliminar usuarios
     
     def post(self, request): # definimos la funcion que recibe la peticion mediante el metodo post
         
@@ -69,52 +90,55 @@ class UserDeleteView(APIView): # definimos la clase para eliminar usuarios
                 
                 user = User.objects.get(username = username) # obtenemos el usuario de la base de datos
                 user.delete() # lo borramos de la base de datos
-                
-                # Eliminamos el usuario del json
-                user = request.data.get("username") # obtenemos el nombre de usuario
-                key = request.data.get("password") # obtenemos la contraseña
-                
-                with open(JSON_PATH, "r+", encoding='utf-8') as f:
-                    data = json.load(f) # cargamos el archivo en la variable data
                     
-                    users = data["apps"]["http"]["servers"]["Cloud_Guardian"]["routes"][0]["handle"][1]["basic"]["users"] # accedemos a la sección de usuarios del json
-                    
-                    del users[username] # eliminamos el usuario del json
-        
-                    # Sobreescribir el archivo JSON con los nuevos datos
-                    f.seek(0)  # Ir al inicio del archivo
-                    json.dump(data, f, indent = 4) # dumpeamos los datos
-                    f.truncate()  # Ajustar el tamaño del archivo
-                    
-                return Response({"message":f"Usuario: {username} eliminado correctamente"}, status = status.HTTP_202_ACCEPTED)
+                return Response({"message":f"Usuario: {username} eliminado correctamente"}, status = status.HTTP_202_ACCEPTED) # si todo sale bien
             
             except User.DoesNotExist: 
-                return Response({"error":f"El usuario: {username} no existe"}, status = status.HTTP_404_NOT_FOUND)
+                return Response({"error":f"El usuario: {username} no existe"}, status = status.HTTP_404_NOT_FOUND) # si no existe devolvemos esto
             
         else:
-            Response({"Contraseña maestra incorrecta, no puedes eliminar usuarios"}, status = status.HTTP_203_NON_AUTHORITATIVE_INFORMATION)
+            Response({"Contraseña maestra incorrecta, no puedes eliminar usuarios"}, status = status.HTTP_203_NON_AUTHORITATIVE_INFORMATION) # si fallas con la masterkey te aparecera esto
+  
+""" LISTA DE USUARIOS PARA TESTEAR COSAS """   
+            
+class listarUsers(APIView):
+    def get(self, request):
+        usersList = User.objects.values()
+        jsonList = UserJSON.objects.values()
+        return Response(f"Lista de usuarios: {usersList}, JSON de los usuarios: {jsonList}")
+    
+""" LISTA DE USUARIOS PARA TESTEAR COSAS """   
     
 
 # 👋👋👋 FUNCIONES PARA INICIO DE SESION Y CIERRE DE SESION 👋👋👋
 
 @api_view(['POST']) # solo acepta peticiones POST.
 
-def login_view(request):  # ✅✅✅ Define la función login_view ✅✅✅
+def login(request):  # ✅✅✅ Define la función login_view ✅✅✅
     
     username = request.data.get("username") # obtenemos el username del cuerpo de la request
     password = request.data.get("password") # obtenemos la password del cuerpo de la request
 
-    user = authenticate(username=username, password=password) # verificamos que las credenciales son correctas
+    user = authenticate(username = username, password = password) # verificamos que las credenciales son correctas
 
     if user: # si el usuario existe
-        token, created = Token.objects.get_or_create(user = user) # si el usuario no tiene token en la bbdd crea uno para el 
-        return Response({"token": token.key}, status = status.HTTP_200_OK) # devuelve el token y el codigo de estado 200
+        token, created = Token.objects.get_or_create(user = user) # si el usuario no tiene token en la bbdd crea uno para el
+        
+        try:
+            
+            user_config = UserJSON.objects.get(user = user) # obtenemos el JSON de la base de datos del user pasado por parametro
+            json_data = user_config.json_data  # extraemos los datos JSON guardados
+            
+        except UserJSON.DoesNotExist:
+            return Response({f"No existe un JSON para el usuario: {user}"}, status = status.HTTP_404_NOT_FOUND) # si no existe
+            
+        return Response({f"token: {token.key} \n caddy_config: {json_data}"}, status = status.HTTP_200_OK) # devuelve el token, el contenido del json y el codigo de estado 200
     
     return Response({"error": "Credenciales incorrectas"}, status = status.HTTP_400_BAD_REQUEST) # si hay algun error devuelve un mensaje y un error 400
 
 @api_view(['POST']) # Solo permite peticiones POST
 
-def logout_view(request): # ❌❌❌ Define la funcion para cerrar sesion de usuario eliminando el token ❌❌❌
+def logout(request): # ❌❌❌ Define la funcion para cerrar sesion de usuario eliminando el token ❌❌❌
     
     try:
         
@@ -140,50 +164,47 @@ def logout_view(request): # ❌❌❌ Define la funcion para cerrar sesion de us
 # 🖥️🖥️🖥️ FUNCION PARA LEER O MODIFICAR EL JSON PARA VER O MODIFICAR SU CONFIGURACION 🖥️🖥️🖥️
 
 @api_view(['GET', 'PUT']) # configuramos la vista para manejar los métodos HTTP GET y PUT
-
-@permission_classes([IsAuthenticatedOrReadOnly]) # solo los autenticados pueden modificar, los demas solo lectura
-
+@authentication_classes([TokenAuthentication]) # es para autenticar el token automaticamente
+@permission_classes([IsAuthenticated]) # solo los autenticados pueden modificar, los demas solo lectura
 def caddy_config_view(request): # definimos la funcion que va a leer o modificar el .json
     
-    JSON_PATH = '/etc/caddy/caddy.json'  # Ruta dentro del contenedo
+    # JSON_PATH = '/etc/caddy/caddy.json'  # Ruta dentro del contenedor
     
-    # 📖 Esta es la funcon para el GET 📖
-    if request.method == 'GET': # en caso de que la peticion sea GET intenta abrir el archivo en solo lectura
-        try: 
-            
-            with open(JSON_PATH, 'r', encoding='utf-8') as f: # abrimos el archivo en modo lectura y le ponemos el alias f
-                data = json.load(f)  # cargamos los datos del archivo en la variable data
-                
-            return Response(data) # devuelve los datos obtenidos con el load
+    user = request.user  # el usuario es automáticamente autenticado por DRF
         
-        except Exception as e:
-            return Response({'error': str(e)}, status = status.HTTP_500_INTERNAL_SERVER_ERROR) # si no consigue leerlo devuelve un error 500
+    try:
+        user_config = UserJSON.objects.get(user = user) # obtenemos los datos del JSON del user autenticado de la base de datos y los metemos en el objeto user_config
+            
+    except user_config.DoesNotExist:
+        return Response({"error": "No se encontró configuración para este usuario."}, status=status.HTTP_404_NOT_FOUND) # si no existe devuelve esto
+
+    # 📖 Esta es la funcon para el GET 📖
+    if request.method == 'GET':
+        return Response(user_config.json_data) # devuelve simplemente los datos de dentro del user_config
 
     # ✏️ Esta es la funcion para el PUT ✏️
-    elif request.method == 'PUT': # si la peticion es PUT intenta actualizar el archivo .json con la informacion enviada
-        try:
-            new_config = request.data # guardamos la configuracion recibida en la peticion en una variable
+    elif request.method == 'PUT':
+        new_config = request.data # metemos la nueva configuracion en una variable, esta nueva configuracion la hemos obtenido de la peticion
 
-            if not isinstance(new_config, dict): # comprobamos que los datos que nos han mandado son en formato diccionario
-                return Response({'error': 'El JSON enviado no es válido.'}, status = status.HTTP_400_BAD_REQUEST) # en caso de que no sea en formato diccionario devolvemos un error 400
+        if not isinstance(new_config, dict): # comprobamos que los datos que nos han mandado son en formato diccionario
+            return Response({'error': 'El JSON enviado no es válido.'}, status = status.HTTP_400_BAD_REQUEST) # en caso de que no sea en formato diccionario devolvemos un error 400
 
-            with open(JSON_PATH, 'w', encoding = 'utf-8') as f: # si todo ha ido bien abrimos el archivo en modo escritura y le pones un alias(f)
-                json.dump(new_config, f, indent = 4) # actualizamos el archivo con los datos del json recibido y lo indentamos para una mejor visual
+        user_config.json_data = new_config # le pasamos la nueva configuracion a nuestra configuracion
+        user_config.save() # lo guardamos en la base de datos
 
-            # 🟡🟡🟡 Intentamos recargar Caddy automáticamente 🟡🟡🟡
-            try:
-                response = request.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
+        return Response({"message": "Configuración actualizada correctamente."}, status=status.HTTP_200_OK) # si todo va bien devolvemos esto
 
-                if response.status_code != 200:
-                    return Response({'warning': 'Configuración guardada, pero Caddy no se recargó automáticamente.'}, status=status.HTTP_202_ACCEPTED)
+    # 🟡🟡🟡 Intentamos recargar Caddy automáticamente 🟡🟡🟡
+    try:
+        response = request.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
 
-            except Exception as reload_error:
-                return Response({'warning': f'Guardado, pero error al recargar Caddy: {reload_error}'}, status=status.HTTP_202_ACCEPTED)
+        if response.status_code != 200:
+            return Response({'warning': 'Configuración guardada, pero Caddy no se recargó automáticamente.'}, status=status.HTTP_202_ACCEPTED)
 
-            return Response({'message': 'Configuración actualizada y Caddy recargado'}, status=status.HTTP_200_OK)
+    except Exception as reload_error:
+        return Response({'warning': f'Guardado, pero error al recargar Caddy: {reload_error}'}, status=status.HTTP_202_ACCEPTED)
 
-        except Exception as e:
-            return Response({'error': str(e)}, status = status.HTTP_500_INTERNAL_SERVER_ERROR)# en caso de que algo falle en el proceso se devuelve un error 500
+    return Response({'message': 'Configuración actualizada y Caddy recargado'}, status=status.HTTP_200_OK)
         
 # 🪪🪪🪪 CLASES PARA AÑADIR Y ELIMINAR IPS PERMITIDAS Y BLOQUEADAS 🪪🪪🪪
         
