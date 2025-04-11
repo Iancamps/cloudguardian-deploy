@@ -5,6 +5,10 @@ import Configuracion from "../pages/Configuracion";
 import IpsBloqueadas from "../pages/IpsBloqueadas";
 import RutasProtegidas from "../pages/RutasProtegidas";
 import Login from "../pages/Login";
+import PrivateRoute from "../components/PrivateRoute";
+import Perfil from "../pages/Perfil";
+import Register from '../pages/Register';
+
 
 const router = createBrowserRouter([
     // Añade fuera del layout principal
@@ -13,15 +17,18 @@ const router = createBrowserRouter([
         element: <Login />,
     },
     {
+        path: "/register", 
+        element: <Register />,
+    },
+    {
         path: "/",
         element: <MainLayout />,
         children: [
-            { path: "/", element: <Home /> },
-            { path: "/configuracion", element: <Configuracion /> },
-            { path: "/ips-bloqueadas", element: <IpsBloqueadas /> },
-            { path: "/rutas-protegidas", element: <RutasProtegidas /> },
-            { path: "/register", element: <Register /> },
-            
+            { path: "/home", element: <PrivateRoute><Home /></PrivateRoute> },
+            { path: "/configuracion", element: <PrivateRoute><Configuracion /></PrivateRoute> },
+            { path: "/ips-bloqueadas", element: <PrivateRoute><IpsBloqueadas /></PrivateRoute> },
+            { path: "/rutas-protegidas", element: <PrivateRoute><RutasProtegidas /></PrivateRoute> },
+            { path: "/perfil", element: <PrivateRoute><Perfil /></PrivateRoute> },
         ],
     },
 ]);

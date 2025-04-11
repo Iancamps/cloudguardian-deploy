@@ -1,9 +1,13 @@
+<<<<<<< HEAD
 import os
 import django
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mysite.settings")
 django.setup()
 
+=======
+import requests
+>>>>>>> 025d142de880f64ebc1c8421f56a6b9c95364933
 from rest_framework.decorators import api_view # convierte la función de vista en una vista basada en función de Django REST Framework
 from rest_framework.decorators import permission_classes # se usa para definir las reglas de permisos para una vista
 from rest_framework.decorators import authentication_classes
@@ -151,7 +155,13 @@ def logout(request): # ❌❌❌ Define la funcion para cerrar sesion de usuario
         token = token.replace('"', '') # reemplazamos las comillas por nada
         token = token.replace(' ', '') # reemplazamos los espacios por nada
 
+
+        # CORRECTO: quitar "Token " del principio
+        token = token.replace("Token ", "").replace('"', '').strip()
+      
+
         user_token = Token.objects.get(key=token) # buscar el token en la base de datos.
+
 
         user_token.delete()  # borrar el token del usuario
 
@@ -192,7 +202,13 @@ def caddy_config_view(request): # definimos la funcion que va a leer o modificar
         user_config.json_data = new_config # le pasamos la nueva configuracion a nuestra configuracion
         user_config.save() # lo guardamos en la base de datos
 
+<<<<<<< HEAD
         return Response({"message": "Configuración actualizada correctamente."}, status=status.HTTP_200_OK) # si todo va bien devolvemos esto
+=======
+            # 🟡🟡🟡 Intentamos recargar Caddy automáticamente 🟡🟡🟡
+            try:
+                response = requests.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
+>>>>>>> 025d142de880f64ebc1c8421f56a6b9c95364933
 
     # 🟡🟡🟡 Intentamos recargar Caddy automáticamente 🟡🟡🟡
     try:
@@ -346,7 +362,7 @@ class AddRoutes(APIView): # ✅ clase para añadir rutas protegidas ✅
             return Response({"error":"Ha ocurrido algún error en el proceso."}, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class DeleteRoutes(APIView): # ❌ clase para eliminar rutas protegidas ❌
-    
+  
     def post(self, request): # definimos la funcion que recibe la peticion mediante el metodo post
         
         delete_path = request.data.get("path") # recibe el path de la peticion
