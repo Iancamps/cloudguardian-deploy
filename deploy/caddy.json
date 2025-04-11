@@ -6,79 +6,146 @@
         "http": {
             "servers": {
                 "Cloud_Guardian": {
-                    "listen": [
-                        ":80"
-                    ],
+                    "listen": ["0.0.0.0:80"],
                     "timeouts": {
                         "read_header_timeout": "15s",
                         "idle_timeout": "5m",
                         "write_timeout": "15s",
                         "header_timeout": "10s"
                     },
-                    "max_connections": 50,
-                    "max_requests_per_connection": 20,
+                    "max_connections": 50,  
+                    "max_requests_per_connection": 20,  
                     "routes": [
                         {
                             "match": [
                                 {
-                                    "path": [
-                                        "/login"
-                                    ]
+                                    "host": ["juan.localhost"],
+                                    "path": ["/login"]  
                                 }
                             ],
                             "handle": [
                                 {
-                                    "handler": "rate_limit",
+                                    "handler": "rate_limit",  
                                     "rate_limit": {
-                                        "requests": 3,
-                                        "window": "1m"
+                                        "requests": 3,  
+                                        "window": "1m"  
                                     }
                                 },
                                 {
-                                    "handler": "authenticate",
+                                    "handler": "authenticate",  
                                     "basic": {
                                         "users": {
-                                            "admin": "1234",
-                                            "Alberto": "5678",
-                                            "Ian": "9123",
-                                            "Jose": "4567",
-                                            "Jaime": "8901"
+                                            "juan": "1234"
                                         }
                                     }
                                 },
                                 {
                                     "handler": "static_response",
-                                    "body": "Acceso a /login concedido"
+                                    "body": "Acceso concedido a Juan"
                                 }
                             ]
                         },
                         {
                             "match": [
                                 {
-                                    "path": [
-                                        "/"
+                                    "host": ["juan.localhost"],
+                                    "path": ["/"]  
+                                }
+                            ],
+                            "handle": [
+                                {
+                                    "handler": "rate_limit",  
+                                    "rate_limit": {
+                                        "requests": 5,  
+                                        "window": "1m"  
+                                    }
+                                },
+                                {
+                                    "handler": "static_response",
+                                    "body": "Página principal accesible para Juan"
+                                }
+                            ]
+                        },
+                        {
+                            "match": [
+                                {
+                                    "host": ["pepe.localhost"],
+                                    "path": ["/login"] 
+                                }
+                            ],
+                            "handle": [
+                                {
+                                    "handler": "rate_limit",  
+                                    "rate_limit": {
+                                        "requests": 3,  
+                                        "window": "1m"  
+                                    }
+                                },
+                                {
+                                    "handler": "authenticate",  
+                                    "basic": {
+                                        "users": {
+                                            "pepe": "5678"
+                                        }
+                                    }
+                                },
+                                {
+                                    "handler": "static_response",
+                                    "body": "Acceso concedido a Pepe"
+                                }
+                            ]
+                        },
+                        {
+                            "match": [
+                                {
+                                    "host": ["pepe.localhost"],
+                                    "path": ["/"]  
+                                }
+                            ],
+                            "handle": [
+                                {
+                                    "handler": "rate_limit",  
+                                    "rate_limit": {
+                                        "requests": 7,  
+                                        "window": "1m"  
+                                    }
+                                },
+                                {
+                                    "handler": "static_response",
+                                    "body": "Página principal accesible para Pepe"
+                                }
+                            ]
+                        },
+                        {
+                            "match": [
+                                {
+                                    "path": ["/api/*"]
+                                }
+                            ],
+                            "handle": [
+                                {
+                                    "handler": "reverse_proxy",
+                                    "upstreams": [
+                                        {
+                                            "dial": "localhost:5000"
+                                        }
                                     ]
+                                }
+                            ]
+                        },
+                        {
+                            "match": [
+                                {
+                                    "path": ["/"]
                                 }
                             ],
                             "handle": [
                                 {
                                     "handler": "static_response",
-                                    "body": "P\u00e1gina principal accesible para IPs permitidas"
+                                    "body": "Página principal accesible para IPs permitidas"
                                 }
                             ]
                         }
-                    ]
-                }
-            },
-            "security": {
-                "remote_ip": {
-                    "allow": [
-                        "100.10.10.1",
-                        "192.168.1.100"
-                    ],
-                    "deny": [
-                        "0.0.0.0/0",
-                        "192.168.0.0/24"
                     ]
                 }
             }
