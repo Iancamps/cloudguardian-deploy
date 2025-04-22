@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { Link } from "react-router-dom";
+
 
 const Login = () => {
     const [usuario, setUsuario] = useState("");
@@ -64,6 +66,9 @@ const Login = () => {
                 >
                     Entrar
                 </button>
+
+                <p>¿No tienes cuenta? <Link to="/register">Regístrate aquí</Link></p>
+
             </form>
         </div>
     );

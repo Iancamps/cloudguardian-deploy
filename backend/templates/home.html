@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="p-6 max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold mb-4">CloudGuardian Dashboard</h1>
+    <p class="text-lg mb-6">
+        Bienvenido{% if user.is_authenticated %}, {{ user.username }} 👋{% endif %}
+    </p>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <div class="bg-gray-800 p-4 rounded shadow">
+            <h2 class="text-xl font-bold mb-2">Configuración</h2>
+            <p>Edita la configuración actual del firewall.</p>
+        </div>
+
+        <div class="bg-gray-800 p-4 rounded shadow">
+            <h2 class="text-xl font-bold mb-2">IPs bloqueadas</h2>
+            <p>Gestiona IPs no autorizadas.</p>
+        </div>
+
+        <div class="bg-gray-800 p-4 rounded shadow">
+            <h2 class="text-xl font-bold mb-2">Rutas protegidas</h2>
+            <p>Define rutas críticas protegidas.</p>
+        </div>
+
+        <div class="bg-gray-800 p-4 rounded shadow">
+            <h2 class="text-xl font-bold mb-2">Registro/Login</h2>
+            <p>Gestiona el acceso de nuevos usuarios.</p>
+        </div>
+
+    </div>
+</div>
+{% endblock %}

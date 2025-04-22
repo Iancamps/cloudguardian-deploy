@@ -1,5 +1,9 @@
 from django.urls import path
-from .views import caddy_config_view, Register, login, logout, UserDelete, AddIPs, DeleteIPs, AddRoutes, DeleteRoutes, listarUsers # importamos las funciones y clases creadas en views
+from .views import (
+    caddy_config_view, Register, login, logout, UserDelete, AddIPs, DeleteIPs, AddRoutes, DeleteRoutes, listarUsers 
+)
+# importamos las funciones y clases creadas en views
+
 from rest_framework.authtoken.views import obtain_auth_token  # importamos la vista que Django proporciona para obtener tokens
 
 urlpatterns = [

@@ -1,27 +1,33 @@
-<<<<<<< HEAD
+
 import os
 import django
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mysite.settings")
 django.setup()
 
-=======
 import requests
->>>>>>> 025d142de880f64ebc1c8421f56a6b9c95364933
-from rest_framework.decorators import api_view # convierte la función de vista en una vista basada en función de Django REST Framework
-from rest_framework.decorators import permission_classes # se usa para definir las reglas de permisos para una vista
-from rest_framework.decorators import authentication_classes
-from rest_framework.permissions import IsAuthenticatedOrReadOnly # la vista permite escrituras (PUT) a los autenticados, pero permite solo lecturas (GET) a los usuarios no autenticados
-from rest_framework.authentication import TokenAuthentication # esto es para usar la autenticacion por token
-from rest_framework.permissions import IsAuthenticated # esto es para darle solo los permisos a los autenticados
-from django.contrib.auth import authenticate # verifica si el username y password son correctos
-from rest_framework.authtoken.models import Token # almacena los tokens de autenticación de los usuarios
-from rest_framework.response import Response # encapsula la respuesta que se enviará al cliente, siguiendo el formato adecuado (JSON).
-from rest_framework import status # contiene códigos de estado HTTP estándar
 import json # para poder manejar archivos .json
+
+from django.contrib.auth import authenticate # verifica si el username y password son correctos
+from django.contrib.auth.models import User
+
+from rest_framework import status # contiene códigos de estado HTTP estándar
+from rest_framework.response import Response # encapsula la respuesta que se enviará al cliente, siguiendo el formato adecuado (JSON).
+from rest_framework.views import APIView #  clase base para crear vistas de drf
+
+from rest_framework.decorators import api_view, authentication_classes # convierte la función de vista en una vista basada en función de Django REST Framework
+from rest_framework.decorators import permission_classes # se usa para definir las reglas de permisos para una vista
+
+from rest_framework.authentication import TokenAuthentication # esto es para usar la autenticacion por token
+
+from rest_framework.permissions import IsAuthenticated # esto es para darle solo los permisos a los autenticados
+
+from rest_framework.permissions import IsAuthenticatedOrReadOnly # la vista permite escrituras (PUT) a los autenticados, pero permite solo lecturas (GET) a los usuarios no autenticados
+
+from rest_framework.authtoken.models import Token # almacena los tokens de autenticación de los usuarios
+
 from rest_framework import request
 from .serializers import UserRegisterSerializer
-from rest_framework.views import APIView #  clase base para crear vistas de drf
 from .models import UserJSON # importamos el modelo para el json se cada usuario
 
 
@@ -45,15 +51,20 @@ class Register(APIView): # Creamos la vista que hereda de APIView, lo que signif
             user = serializer.save() # Llamamos a serializer.save(), que a su vez ejecutará el método create que definimos en el serializador, creando un usuario en la base de datos y le pasamos los datos a la variable user
             
             user_json_path = os.path.join(BASE_DIR, f"caddy_{user.username}.json") # creamos la ruta para el JSON de la base de datos
+            
+            # Asegurar que la carpeta existe
+            os.makedirs(os.path.dirname(user_json_path), exist_ok=True)
 
             try:
-                
+                # Cargar JSON base
                 with open(JSON_PATH, "r", encoding='utf-8') as f:
                     data_base = json.load(f) # cargamos los datos en una variable
 
+                # Escribir una copia para el usuario
                 with open(user_json_path, "w", encoding="utf-8") as f: # creamos una copia con la ruta que definimos antes
                     json.dump(data_base, f, indent=4) # dumpeamos los datos del JSON base al JSON del usuario nuevo
                     
+                # Modificar el JSON para añadir usuario y contraseña
                 with open(user_json_path, "r+", encoding='utf-8') as f:
                     data = json.load(f) # cargamos el archivo en la variable data
                     
@@ -68,7 +79,7 @@ class Register(APIView): # Creamos la vista que hereda de APIView, lo que signif
 
                     UserJSON.objects.create(user = user, json_data = data_base) # guardamos el nuevo JSON en la base de datos
 
-            except:
+            except Exception as e:
                 return Response({"error": f"Error al crear el archivo JSON"}, status = status.HTTP_500_INTERNAL_SERVER_ERROR) # si pasa algo en el proceso mandamos un msg y un codigo de estado
 
             return Response({"message": "Usuario registrado y JSON generado"}, status = status.HTTP_201_CREATED) # si todo va bien devolvemos esto
@@ -102,7 +113,7 @@ class UserDelete(APIView): # definimos la clase para eliminar usuarios
             
         else:
             Response({"Contraseña maestra incorrecta, no puedes eliminar usuarios"}, status = status.HTTP_203_NON_AUTHORITATIVE_INFORMATION) # si fallas con la masterkey te aparecera esto
-  
+
 """ LISTA DE USUARIOS PARA TESTEAR COSAS """   
             
 class listarUsers(APIView):
@@ -136,7 +147,10 @@ def login(request):  # ✅✅✅ Define la función login_view ✅✅✅
         except UserJSON.DoesNotExist:
             return Response({f"No existe un JSON para el usuario: {user}"}, status = status.HTTP_404_NOT_FOUND) # si no existe
             
-        return Response({f"token: {token.key} \n caddy_config: {json_data}"}, status = status.HTTP_200_OK) # devuelve el token, el contenido del json y el codigo de estado 200
+        return Response({
+            "token": token.key,
+            "caddy_config": json_data
+        }, status=status.HTTP_200_OK) # devuelve el token, el contenido del json y el codigo de estado 200
     
     return Response({"error": "Credenciales incorrectas"}, status = status.HTTP_400_BAD_REQUEST) # si hay algun error devuelve un mensaje y un error 400
 
@@ -158,7 +172,7 @@ def logout(request): # ❌❌❌ Define la funcion para cerrar sesion de usuario
 
         # CORRECTO: quitar "Token " del principio
         token = token.replace("Token ", "").replace('"', '').strip()
-      
+
 
         user_token = Token.objects.get(key=token) # buscar el token en la base de datos.
 
@@ -176,6 +190,8 @@ def logout(request): # ❌❌❌ Define la funcion para cerrar sesion de usuario
 @api_view(['GET', 'PUT']) # configuramos la vista para manejar los métodos HTTP GET y PUT
 @authentication_classes([TokenAuthentication]) # es para autenticar el token automaticamente
 @permission_classes([IsAuthenticated]) # solo los autenticados pueden modificar, los demas solo lectura
+
+
 def caddy_config_view(request): # definimos la funcion que va a leer o modificar el .json
     
     # JSON_PATH = '/etc/caddy/caddy.json'  # Ruta dentro del contenedor
@@ -185,7 +201,7 @@ def caddy_config_view(request): # definimos la funcion que va a leer o modificar
     try:
         user_config = UserJSON.objects.get(user = user) # obtenemos los datos del JSON del user autenticado de la base de datos y los metemos en el objeto user_config
             
-    except user_config.DoesNotExist:
+    except UserJSON.DoesNotExist:
         return Response({"error": "No se encontró configuración para este usuario."}, status=status.HTTP_404_NOT_FOUND) # si no existe devuelve esto
 
     # 📖 Esta es la funcon para el GET 📖
@@ -202,25 +218,18 @@ def caddy_config_view(request): # definimos la funcion que va a leer o modificar
         user_config.json_data = new_config # le pasamos la nueva configuracion a nuestra configuracion
         user_config.save() # lo guardamos en la base de datos
 
-<<<<<<< HEAD
+
         return Response({"message": "Configuración actualizada correctamente."}, status=status.HTTP_200_OK) # si todo va bien devolvemos esto
-=======
-            # 🟡🟡🟡 Intentamos recargar Caddy automáticamente 🟡🟡🟡
-            try:
-                response = requests.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
->>>>>>> 025d142de880f64ebc1c8421f56a6b9c95364933
 
-    # 🟡🟡🟡 Intentamos recargar Caddy automáticamente 🟡🟡🟡
-    try:
-        response = request.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
+        # 🟡🟡🟡 Intentamos recargar Caddy automáticamente 🟡🟡🟡
+        try:
+            response = requests.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
+            if response.status_code != 200:
+                return Response({'warning': 'Configuración guardada, pero Caddy no se recargó automáticamente.'}, status=status.HTTP_202_ACCEPTED)
 
-        if response.status_code != 200:
-            return Response({'warning': 'Configuración guardada, pero Caddy no se recargó automáticamente.'}, status=status.HTTP_202_ACCEPTED)
-
-    except Exception as reload_error:
-        return Response({'warning': f'Guardado, pero error al recargar Caddy: {reload_error}'}, status=status.HTTP_202_ACCEPTED)
-
-    return Response({'message': 'Configuración actualizada y Caddy recargado'}, status=status.HTTP_200_OK)
+        except Exception as reload_error:
+            return Response({'warning': f'Guardado, pero error al recargar Caddy: {reload_error}'}, status=status.HTTP_202_ACCEPTED)
+        return Response({'message': 'Configuración actualizada y Caddy recargado'}, status=status.HTTP_200_OK)
         
 # 🪪🪪🪪 CLASES PARA AÑADIR Y ELIMINAR IPS PERMITIDAS Y BLOQUEADAS 🪪🪪🪪
         
@@ -362,7 +371,7 @@ class AddRoutes(APIView): # ✅ clase para añadir rutas protegidas ✅
             return Response({"error":"Ha ocurrido algún error en el proceso."}, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 class DeleteRoutes(APIView): # ❌ clase para eliminar rutas protegidas ❌
-  
+
     def post(self, request): # definimos la funcion que recibe la peticion mediante el metodo post
         
         delete_path = request.data.get("path") # recibe el path de la peticion

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h2 class="text-2xl font-bold mb-4">IPs Bloqueadas</h2>
+
+<form method="POST">
+    {% csrf_token %}
+    <input type="text" name="ip_add" placeholder="Nueva IP a bloquear" class="w-full p-2 mb-2 rounded bg-gray-900 border border-gray-700">
+    <button type="submit" name="action" value="add" class="bg-red-600 px-4 py-2 rounded hover:bg-red-700 mb-4">Bloquear IP</button>
+
+    <input type="text" name="ip_delete" placeholder="IP a desbloquear" class="w-full p-2 mb-2 rounded bg-gray-900 border border-gray-700">
+    <button type="submit" name="action" value="delete" class="bg-yellow-600 px-4 py-2 rounded hover:bg-yellow-700">Desbloquear IP</button>
+</form>
+
+{% if message %}
+<p class="mt-4 text-yellow-300">{{ message }}</p>
+
+{% endif %}
+{% endblock %}

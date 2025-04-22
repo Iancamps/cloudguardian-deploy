@@ -1,5 +1,7 @@
-from django.db import models
+
 from django.contrib.auth.models import User
+from django.db import models
+
 
 # Vamos a crear un modelo para guardar los JSON
 class UserJSON(models.Model):

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 
+
+
 export default function Register() {
     const [username, setUsername] = useState('');
     const [password1, setPassword1] = useState('');
@@ -17,7 +19,7 @@ export default function Register() {
             return;
         }
 
-        axios.post('/api/register', {
+        axios.post('/register', {
             username,
             password1,
             password2
