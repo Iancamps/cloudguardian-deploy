@@ -1,97 +1,72 @@
-
+""" SISTEMA OPERATIVO """
 import os
-import django
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "mysite.settings")
-django.setup()
-
-import requests
-import json # para poder manejar archivos .json
-
-from django.contrib.auth import authenticate # verifica si el username y password son correctos
-from django.contrib.auth.models import User
-
+""" COMUNICACION CON EL CLIENTE """
 from rest_framework import status # contiene códigos de estado HTTP estándar
 from rest_framework.response import Response # encapsula la respuesta que se enviará al cliente, siguiendo el formato adecuado (JSON).
-from rest_framework.views import APIView #  clase base para crear vistas de drf
+import json # para poder manejar archivos .json
 
-from rest_framework.decorators import api_view, authentication_classes # convierte la función de vista en una vista basada en función de Django REST Framework
-from rest_framework.decorators import permission_classes # se usa para definir las reglas de permisos para una vista
-
+""" AUTENTICACIÓN Y PERMISOS """
+from django.contrib.auth import authenticate # verifica si el username y password son correctos
+from rest_framework.decorators import authentication_classes
 from rest_framework.authentication import TokenAuthentication # esto es para usar la autenticacion por token
-
+from rest_framework.decorators import permission_classes # se usa para definir las reglas de permisos para una vista
 from rest_framework.permissions import IsAuthenticated # esto es para darle solo los permisos a los autenticados
-
 from rest_framework.permissions import IsAuthenticatedOrReadOnly # la vista permite escrituras (PUT) a los autenticados, pero permite solo lecturas (GET) a los usuarios no autenticados
 
+""" MANEJO DE LAS VISTAS """
+from rest_framework.views import APIView #  clase base para crear vistas de drf
+from rest_framework.decorators import api_view # convierte la función de vista en una vista basada en función de Django REST Framework
+from rest_framework import viewsets # importamos el viewsets para crear modelos CRUD completos muy rápido
+
+""" MODELOS Y SERIALIZERS """
+from django.contrib.auth.models import User # importamos el modelo de usuario que ya trae django
 from rest_framework.authtoken.models import Token # almacena los tokens de autenticación de los usuarios
+from .models import UserJSON # importamos el modelo para el json de cada usuario
+from .serializers import UserRegisterSerializer # importamos el serializador del sistema de registro
 
-from rest_framework import request
-from .serializers import UserRegisterSerializer
-from .models import UserJSON # importamos el modelo para el json se cada usuario
-
-
-# 🔵🔵🔵 RUTAS NECESARIAS 🔵🔵🔵
+""" 🔵🔵🔵 RUTAS NECESARIAS 🔵🔵🔵 """
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 JSON_PATH = os.path.join(BASE_DIR, "..", "deploy", "caddy.json") # Eso construye la ruta relativa correcta al caddy.json aunque estés dentro del contenedor o en local
 
-# 🟢🟢🟢 ESTA ES LA CLASE Y FUNCION PARA REGISTRAR USUARIOS 🟢🟢🟢
+""" 🟢🟢🟢 REGISTRO DE USUARIOS 🟢🟢🟢"""
 
-class Register(APIView): # Creamos la vista que hereda de APIView, lo que significa que esta vista manejará peticiones HTTP como POST
+@api_view(['POST'])
+def register(request):
     
-    def post(self, request):
+    username = request.data.get("username") # obtenemos el nombre de usuario
+    password = request.data.get("password") # obtenemos la contraseña
         
-        username = request.data.get("username") # obtenemos el nombre de usuario
-        password = request.data.get("password") # obtenemos la contraseña
+    serializer = UserRegisterSerializer(data = request.data) # creamos una instancia de UserRegisterSerializer y le pasamos los datos que vienen en la petición (request.data)
         
-        serializer = UserRegisterSerializer(data = request.data) # creamos una instancia de UserRegisterSerializer y le pasamos los datos que vienen en la petición (request.data)
-        
-        if serializer.is_valid(): # Verificamos si los datos enviados son válidos, es decir, si cumplen con las reglas del serializador
-            user = serializer.save() # Llamamos a serializer.save(), que a su vez ejecutará el método create que definimos en el serializador, creando un usuario en la base de datos y le pasamos los datos a la variable user
+    if serializer.is_valid(): # Verificamos si los datos enviados son válidos, es decir, si cumplen con las reglas del serializador
+        usuario = serializer.save() # Llamamos a serializer.save(), que a su vez ejecutará el método create que definimos en el serializador, creando un usuario en la base de datos y le pasamos los datos a la variable user
+        token = Token.objects.create(user = usuario) # creamos un token para el usuario y lo almacena en la tabla Token
             
-            user_json_path = os.path.join(BASE_DIR, f"caddy_{user.username}.json") # creamos la ruta para el JSON de la base de datos
-            
-            # Asegurar que la carpeta existe
-            os.makedirs(os.path.dirname(user_json_path), exist_ok=True)
-
-            try:
-                # Cargar JSON base
-                with open(JSON_PATH, "r", encoding='utf-8') as f:
-                    data_base = json.load(f) # cargamos los datos en una variable
-
-                # Escribir una copia para el usuario
-                with open(user_json_path, "w", encoding="utf-8") as f: # creamos una copia con la ruta que definimos antes
-                    json.dump(data_base, f, indent=4) # dumpeamos los datos del JSON base al JSON del usuario nuevo
-                    
-                # Modificar el JSON para añadir usuario y contraseña
-                with open(user_json_path, "r+", encoding='utf-8') as f:
-                    data = json.load(f) # cargamos el archivo en la variable data
-                    
-                    users = data["apps"]["http"]["servers"]["Cloud_Guardian"]["routes"][0]["handle"][1]["basic"]["users"] # accedemos a la sección de usuarios del json
-                    
-                    users[username] = password # añadimos el usuario del json
+        user_json_path = os.path.join(BASE_DIR, f"caddy_{usuario.username}.json") # creamos la ruta para el JSON de la base de datos
         
-                    # Sobreescribir el archivo JSON con los nuevos datos
-                    f.seek(0)  # Ir al inicio del archivo
-                    json.dump(data, f, indent = 4) # dumpeamos los datos
-                    f.truncate()  # Ajustar el tamaño del archivo
+        try:
+            # Cargar JSON base
+            with open(JSON_PATH, "r", encoding='utf-8') as f:
+                data_base = json.load(f) # cargamos los datos del json base en una variable
 
-                    UserJSON.objects.create(user = user, json_data = data_base) # guardamos el nuevo JSON en la base de datos
+            # Escribir una copia para el usuario
+            with open(user_json_path, "w", encoding="utf-8") as f: # creamos una copia del json base en el json del usuario creado mediante la ruta que creamos antes
+                json.dump(data_base, f, indent=4) # dumpeamos los datos del JSON base al JSON del usuario nuevo
 
-            except Exception as e:
-                return Response({"error": f"Error al crear el archivo JSON"}, status = status.HTTP_500_INTERNAL_SERVER_ERROR) # si pasa algo en el proceso mandamos un msg y un codigo de estado
+                UserJSON.objects.create(user = usuario, json_data = data_base, json_path = user_json_path) # guardamos el nuevo JSON en la base de datos(en la tabla UserJSON que hemos creado)
 
-            return Response({"message": "Usuario registrado y JSON generado"}, status = status.HTTP_201_CREATED) # si todo va bien devolvemos esto
+        except Exception as e:
+            return Response({"error": f"Error al crear el archivo JSON"}, status = status.HTTP_500_INTERNAL_SERVER_ERROR) # si pasa algo en el proceso mandamos un msg y un codigo de estado
+
+        return Response({"message": "Usuario registrado y JSON generado"}, status = status.HTTP_201_CREATED) # si todo va bien devolvemos esto
         
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-# 🔴🔴🔴 CLASE Y FUNCION PARA ELIMINAR USUARIOS DE LA BASE DE DATOS 🔴🔴🔴
+""" 🔴🔴🔴 CLASE Y FUNCION PARA ELIMINAR USUARIOS DE LA BASE DE DATOS 🔴🔴🔴 """
 
-from django.contrib.auth.models import User # importamos el modelo de usuario
-
-class UserDelete(APIView): # definimos la clase para eliminar usuarios
-    
+class UserDelete(APIView): # definimos la clase para eliminar usuario
     def post(self, request): # definimos la funcion que recibe la peticion mediante el metodo post
         
         # Elimina un usuario por su nombre de usuario si indican la masterkey necesaria
@@ -104,7 +79,10 @@ class UserDelete(APIView): # definimos la clase para eliminar usuarios
             try:
                 
                 user = User.objects.get(username = username) # obtenemos el usuario de la base de datos
-                user.delete() # lo borramos de la base de datos
+                user.delete() # lo borramos de la base de datos(el json se borra automaticamente de la base de datos con el cascade puesto en el modelo)
+                
+                user_json_path = os.path.join(BASE_DIR, f"caddy_{username}.json") # ruta al fichero del usuario a eliminar
+                os.remove(user_json_path) # eliminamos su fichero
                     
                 return Response({"message":f"Usuario: {username} eliminado correctamente"}, status = status.HTTP_202_ACCEPTED) # si todo sale bien
             
@@ -120,15 +98,15 @@ class listarUsers(APIView):
     def get(self, request):
         usersList = User.objects.values()
         jsonList = UserJSON.objects.values()
-        return Response(f"Lista de usuarios: {usersList}, JSON de los usuarios: {jsonList}")
+        userToken = Token.objects.values()
+        return Response(f"Lista de usuarios: {usersList} \n JSON de los usuarios: {jsonList} \n Token de los usuarios: {userToken}")
     
 """ LISTA DE USUARIOS PARA TESTEAR COSAS """   
     
 
-# 👋👋👋 FUNCIONES PARA INICIO DE SESION Y CIERRE DE SESION 👋👋👋
+""" 👋👋👋 FUNCIONES PARA INICIO DE SESION Y CIERRE DE SESION 👋👋👋 """
 
 @api_view(['POST']) # solo acepta peticiones POST.
-
 def login(request):  # ✅✅✅ Define la función login_view ✅✅✅
     
     username = request.data.get("username") # obtenemos el username del cuerpo de la request
@@ -155,7 +133,6 @@ def login(request):  # ✅✅✅ Define la función login_view ✅✅✅
     return Response({"error": "Credenciales incorrectas"}, status = status.HTTP_400_BAD_REQUEST) # si hay algun error devuelve un mensaje y un error 400
 
 @api_view(['POST']) # Solo permite peticiones POST
-
 def logout(request): # ❌❌❌ Define la funcion para cerrar sesion de usuario eliminando el token ❌❌❌
     
     try:
@@ -169,13 +146,10 @@ def logout(request): # ❌❌❌ Define la funcion para cerrar sesion de usuario
         token = token.replace('"', '') # reemplazamos las comillas por nada
         token = token.replace(' ', '') # reemplazamos los espacios por nada
 
-
         # CORRECTO: quitar "Token " del principio
         token = token.replace("Token ", "").replace('"', '').strip()
 
-
         user_token = Token.objects.get(key=token) # buscar el token en la base de datos.
-
 
         user_token.delete()  # borrar el token del usuario
 
@@ -184,14 +158,11 @@ def logout(request): # ❌❌❌ Define la funcion para cerrar sesion de usuario
     except Token.DoesNotExist:
         return Response({'error': 'Token no válido o ya expirado.'}, status=status.HTTP_400_BAD_REQUEST) # si se ha pasado un token pero no es valido o ya a expirado
 
-
-# 🖥️🖥️🖥️ FUNCION PARA LEER O MODIFICAR EL JSON PARA VER O MODIFICAR SU CONFIGURACION 🖥️🖥️🖥️
+""" 🖥️🖥️🖥️ FUNCION PARA LEER O MODIFICAR EL JSON PARA VER O MODIFICAR SU CONFIGURACION 🖥️🖥️🖥️ """
 
 @api_view(['GET', 'PUT']) # configuramos la vista para manejar los métodos HTTP GET y PUT
 @authentication_classes([TokenAuthentication]) # es para autenticar el token automaticamente
 @permission_classes([IsAuthenticated]) # solo los autenticados pueden modificar, los demas solo lectura
-
-
 def caddy_config_view(request): # definimos la funcion que va a leer o modificar el .json
     
     # JSON_PATH = '/etc/caddy/caddy.json'  # Ruta dentro del contenedor
@@ -218,20 +189,19 @@ def caddy_config_view(request): # definimos la funcion que va a leer o modificar
         user_config.json_data = new_config # le pasamos la nueva configuracion a nuestra configuracion
         user_config.save() # lo guardamos en la base de datos
 
-
         return Response({"message": "Configuración actualizada correctamente."}, status=status.HTTP_200_OK) # si todo va bien devolvemos esto
 
-        # 🟡🟡🟡 Intentamos recargar Caddy automáticamente 🟡🟡🟡
-        try:
-            response = requests.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
-            if response.status_code != 200:
-                return Response({'warning': 'Configuración guardada, pero Caddy no se recargó automáticamente.'}, status=status.HTTP_202_ACCEPTED)
+    # 🟡🟡🟡 Intentamos recargar Caddy automáticamente 🟡🟡🟡
+    try:
+        response = request.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
+        if response.status_code != 200:
+            return Response({'warning': 'Configuración guardada, pero Caddy no se recargó automáticamente.'}, status=status.HTTP_202_ACCEPTED)
 
-        except Exception as reload_error:
-            return Response({'warning': f'Guardado, pero error al recargar Caddy: {reload_error}'}, status=status.HTTP_202_ACCEPTED)
-        return Response({'message': 'Configuración actualizada y Caddy recargado'}, status=status.HTTP_200_OK)
+    except Exception as reload_error:
+        return Response({'warning': f'Guardado, pero error al recargar Caddy: {reload_error}'}, status=status.HTTP_202_ACCEPTED)
+    return Response({'message': 'Configuración actualizada y Caddy recargado'}, status=status.HTTP_200_OK)
         
-# 🪪🪪🪪 CLASES PARA AÑADIR Y ELIMINAR IPS PERMITIDAS Y BLOQUEADAS 🪪🪪🪪
+""" 🪪🪪🪪 CLASES PARA AÑADIR Y ELIMINAR IPS PERMITIDAS Y BLOQUEADAS 🪪🪪🪪 """
         
 class AddIPs(APIView): # ✅ Esta es la clase para añadir ips al json ✅
     
@@ -307,7 +277,7 @@ class DeleteIPs(APIView): # ❌ clase para eliminar ips ❌
             
             Response({"message":"Ha ocurrido un error al intentar añadir las ips"}, status = status.HTTP_500_INTERNAL_SERVER_ERROR) # si ocurre otro error en el proceso devolvemos esto
             
-# 🛤️🛤️🛤️ CREAMOS CLASE Y FUNCIONES PARA AÑADIR Y ELIMINAR RUTAS PROTEGIDAS 🛤️🛤️🛤️
+""" 🛤️🛤️🛤️ CREAMOS CLASE Y FUNCIONES PARA AÑADIR Y ELIMINAR RUTAS PROTEGIDAS 🛤️🛤️🛤️ """
             
 class AddRoutes(APIView): # ✅ clase para añadir rutas protegidas ✅
     

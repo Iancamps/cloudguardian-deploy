@@ -1,13 +1,13 @@
 from django.urls import path
 from .views import (
-    caddy_config_view, Register, login, logout, UserDelete, AddIPs, DeleteIPs, AddRoutes, DeleteRoutes, listarUsers 
+    caddy_config_view, register, login, logout, UserDelete, AddIPs, DeleteIPs, AddRoutes, DeleteRoutes, listarUsers 
 )
 # importamos las funciones y clases creadas en views
 
 from rest_framework.authtoken.views import obtain_auth_token  # importamos la vista que Django proporciona para obtener tokens
 
 urlpatterns = [
-    path('register/', Register.as_view(), name = 'register'), # endpoint para registros
+    path('register/', register, name = 'register'), # endpoint para registros
     path('login/', login, name = 'login'), # endpoint para logins
     path('login/logout/', logout, name = 'logout'), # endpoint para cerrar sesion eliminando el token
     path('api/config/', caddy_config_view, name = 'configuration'), # le damos una ruta a la funcion == http://localhost:8000/api/config
