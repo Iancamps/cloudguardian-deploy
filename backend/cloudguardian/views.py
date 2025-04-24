@@ -5,6 +5,7 @@ import os
 from rest_framework import status # contiene códigos de estado HTTP estándar
 from rest_framework.response import Response # encapsula la respuesta que se enviará al cliente, siguiendo el formato adecuado (JSON).
 import json # para poder manejar archivos .json
+import requests
 
 """ AUTENTICACIÓN Y PERMISOS """
 from django.contrib.auth import authenticate # verifica si el username y password son correctos
@@ -29,6 +30,18 @@ from .serializers import UserRegisterSerializer # importamos el serializador del
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 JSON_PATH = os.path.join(BASE_DIR, "..", "deploy", "caddy.json") # Eso construye la ruta relativa correcta al caddy.json aunque estés dentro del contenedor o en local
+
+""" 🟡🟡🟡 Intentamos recargar Caddy automáticamente 🟡🟡🟡 """
+
+def reload_caddy(request, new_config):
+    try:
+        response = requests.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json = new_config)
+        if response.status_code != 200:
+            return Response({'warning': 'Configuración guardada, pero Caddy no se recargó automáticamente.'}, status=status.HTTP_202_ACCEPTED)
+
+    except Exception as reload_error:
+        return Response({'warning': f'Guardado, pero error al recargar Caddy: {reload_error}'}, status=status.HTTP_202_ACCEPTED)
+    return Response({'message': 'Configuración actualizada y Caddy recargado'}, status=status.HTTP_200_OK) 
 
 """ 🟢🟢🟢 REGISTRO DE USUARIOS 🟢🟢🟢"""
 
@@ -57,6 +70,8 @@ def register(request):
 
                 UserJSON.objects.create(user = usuario, json_data = data_base, json_path = user_json_path) # guardamos el nuevo JSON en la base de datos(en la tabla UserJSON que hemos creado)
 
+            reload_caddy(request, data_base) # recargamos caddy
+            
         except Exception as e:
             return Response({"error": f"Error al crear el archivo JSON"}, status = status.HTTP_500_INTERNAL_SERVER_ERROR) # si pasa algo en el proceso mandamos un msg y un codigo de estado
 
@@ -86,11 +101,12 @@ class UserDelete(APIView): # definimos la clase para eliminar usuario
                     
                 return Response({"message":f"Usuario: {username} eliminado correctamente"}, status = status.HTTP_202_ACCEPTED) # si todo sale bien
             
+            
             except User.DoesNotExist: 
                 return Response({"error":f"El usuario: {username} no existe"}, status = status.HTTP_404_NOT_FOUND) # si no existe devolvemos esto
             
         else:
-            Response({"Contraseña maestra incorrecta, no puedes eliminar usuarios"}, status = status.HTTP_203_NON_AUTHORITATIVE_INFORMATION) # si fallas con la masterkey te aparecera esto
+            return Response({"Contraseña maestra incorrecta, no puedes eliminar usuarios"}, status = status.HTTP_203_NON_AUTHORITATIVE_INFORMATION) # si fallas con la masterkey te aparecera esto
 
 """ LISTA DE USUARIOS PARA TESTEAR COSAS """   
             
@@ -99,7 +115,11 @@ class listarUsers(APIView):
         usersList = User.objects.values()
         jsonList = UserJSON.objects.values()
         userToken = Token.objects.values()
-        return Response(f"Lista de usuarios: {usersList} \n JSON de los usuarios: {jsonList} \n Token de los usuarios: {userToken}")
+        return Response({
+            "Usuarios": list(usersList),
+            "JSONs": list(jsonList),
+            "Tokens": list(userToken)
+        })
     
 """ LISTA DE USUARIOS PARA TESTEAR COSAS """   
     
@@ -121,6 +141,8 @@ def login(request):  # ✅✅✅ Define la función login_view ✅✅✅
             
             user_config = UserJSON.objects.get(user = user) # obtenemos el JSON de la base de datos del user pasado por parametro
             json_data = user_config.json_data  # extraemos los datos JSON guardados
+            
+            reload_caddy(request, json_data) # recargamos caddy
             
         except UserJSON.DoesNotExist:
             return Response({f"No existe un JSON para el usuario: {user}"}, status = status.HTTP_404_NOT_FOUND) # si no existe
@@ -190,16 +212,6 @@ def caddy_config_view(request): # definimos la funcion que va a leer o modificar
         user_config.save() # lo guardamos en la base de datos
 
         return Response({"message": "Configuración actualizada correctamente."}, status=status.HTTP_200_OK) # si todo va bien devolvemos esto
-
-    # 🟡🟡🟡 Intentamos recargar Caddy automáticamente 🟡🟡🟡
-    try:
-        response = request.post(os.environ.get("CADDY_ADMIN", "http://caddy:2019") + "/load", json=new_config)
-        if response.status_code != 200:
-            return Response({'warning': 'Configuración guardada, pero Caddy no se recargó automáticamente.'}, status=status.HTTP_202_ACCEPTED)
-
-    except Exception as reload_error:
-        return Response({'warning': f'Guardado, pero error al recargar Caddy: {reload_error}'}, status=status.HTTP_202_ACCEPTED)
-    return Response({'message': 'Configuración actualizada y Caddy recargado'}, status=status.HTTP_200_OK)
         
 """ 🪪🪪🪪 CLASES PARA AÑADIR Y ELIMINAR IPS PERMITIDAS Y BLOQUEADAS 🪪🪪🪪 """
         
