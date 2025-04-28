@@ -1,27 +1,32 @@
 """ SISTEMA OPERATIVO """
 import os
+import json # para poder manejar archivos .json
+import requests
 
 """ COMUNICACION CON EL CLIENTE """
 from rest_framework import status # contiene códigos de estado HTTP estándar
 from rest_framework.response import Response # encapsula la respuesta que se enviará al cliente, siguiendo el formato adecuado (JSON).
-import json # para poder manejar archivos .json
-import requests
+
 
 """ AUTENTICACIÓN Y PERMISOS """
-from django.contrib.auth import authenticate # verifica si el username y password son correctos
-from rest_framework.decorators import authentication_classes
+from rest_framework.decorators import api_view, authentication_classes, permission_classes # convierte la función de vista en una vista basada en función de Django REST Framework
 from rest_framework.authentication import TokenAuthentication # esto es para usar la autenticacion por token
-from rest_framework.decorators import permission_classes # se usa para definir las reglas de permisos para una vista
 from rest_framework.permissions import IsAuthenticated # esto es para darle solo los permisos a los autenticados
 from rest_framework.permissions import IsAuthenticatedOrReadOnly # la vista permite escrituras (PUT) a los autenticados, pero permite solo lecturas (GET) a los usuarios no autenticados
 
 """ MANEJO DE LAS VISTAS """
 from rest_framework.views import APIView #  clase base para crear vistas de drf
-from rest_framework.decorators import api_view # convierte la función de vista en una vista basada en función de Django REST Framework
+
 from rest_framework import viewsets # importamos el viewsets para crear modelos CRUD completos muy rápido
+from rest_framework.response import Response
 
 """ MODELOS Y SERIALIZERS """
+from django.shortcuts import render, redirect  #  añadimos render para templates 
 from django.contrib.auth.models import User # importamos el modelo de usuario que ya trae django
+from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout # verifica si el username y password son correctos
+from django.contrib import messages
+from django.views.decorators.csrf import csrf_exempt
+
 from rest_framework.authtoken.models import Token # almacena los tokens de autenticación de los usuarios
 from .models import UserJSON # importamos el modelo para el json de cada usuario
 from .serializers import UserRegisterSerializer # importamos el serializador del sistema de registro
@@ -42,6 +47,149 @@ def reload_caddy(request, new_config):
     except Exception as reload_error:
         return Response({'warning': f'Guardado, pero error al recargar Caddy: {reload_error}'}, status=status.HTTP_202_ACCEPTED)
     return Response({'message': 'Configuración actualizada y Caddy recargado'}, status=status.HTTP_200_OK) 
+
+
+
+""" 🔵 VISTAS CLÁSICAS PARA TEMPLATES 🔵 """
+
+def home(request):
+    return render(request, "home.html")
+
+def login_view(request):
+    if request.method == "POST":
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user:
+            auth_login(request, user)
+            return redirect('home')
+        else:
+            return render(request, "login.html", {"error": "Usuario o contraseña incorrectos."})
+    return render(request, "login.html")
+
+def register_view(request):
+    if request.method == "POST":
+        username = request.POST.get('username')
+        password1 = request.POST.get('password1')
+        password2 = request.POST.get('password2')
+
+        if password1 != password2:
+            return render(request, "register.html", {"message": "Las contraseñas no coinciden."})
+        if User.objects.filter(username=username).exists():
+            return render(request, "register.html", {"message": "El nombre de usuario ya existe."})
+
+        user = User.objects.create_user(username=username, password=password1)
+        user.save()
+        auth_login(request, user)
+        return redirect('home')
+    return render(request, "register.html")
+
+def logout_view(request):
+    auth_logout(request)
+    return redirect('login')
+
+def configuracion(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+
+    try:
+        user_config = UserJSON.objects.get(user=request.user)
+    except UserJSON.DoesNotExist:
+        return render(request, "configuracion.html", {"message": "No se encontró configuración para este usuario."})
+
+    if request.method == "POST":
+        new_config = request.POST.get("config")
+        try:
+            data = json.loads(new_config)
+            user_config.json_data = data
+            user_config.save()
+            return render(request, "configuracion.html", {"config": new_config, "message": "Configuración actualizada correctamente."})
+        except json.JSONDecodeError:
+            return render(request, "configuracion.html", {"config": new_config, "message": "Formato JSON inválido."})
+
+    config_json = json.dumps(user_config.json_data, indent=4)
+    return render(request, "configuracion.html", {"config": config_json})
+
+def ips_bloqueadas(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+
+    message = ""
+    try:
+        user_config = UserJSON.objects.get(user=request.user)
+        data = user_config.json_data
+        allow = data["apps"]["http"]["security"]["remote_ip"]["allow"]
+        deny = data["apps"]["http"]["security"]["remote_ip"]["deny"]
+
+        if request.method == "POST":
+            action = request.POST.get("action")
+            if action == "add":
+                ip_add = request.POST.get("ip_add")
+                if ip_add and ip_add not in deny:
+                    deny.append(ip_add)
+                    user_config.json_data = data
+                    user_config.save()
+                    message = f"IP {ip_add} bloqueada correctamente."
+                else:
+                    message = "IP ya bloqueada o no válida."
+            elif action == "delete":
+                ip_delete = request.POST.get("ip_delete")
+                if ip_delete and ip_delete in deny:
+                    deny.remove(ip_delete)
+                    user_config.json_data = data
+                    user_config.save()
+                    message = f"IP {ip_delete} desbloqueada correctamente."
+                else:
+                    message = "IP no encontrada."
+    except Exception as e:
+        message = "Error cargando configuración."
+
+    return render(request, "ips_bloqueadas.html", {"message": message})
+
+def rutas_protegidas(request):
+    if not request.user.is_authenticated:
+        return redirect('login')
+
+    message = ""
+    try:
+        user_config = UserJSON.objects.get(user=request.user)
+        data = user_config.json_data
+        routes = data["apps"]["http"]["servers"]["Cloud_Guardian"]["routes"]
+
+        if request.method == "POST":
+            action = request.POST.get("action")
+            if action == "add":
+                ruta_add = request.POST.get("ruta_add")
+                if ruta_add:
+                    new_route = {
+                        "match": [{"path": [ruta_add]}],
+                        "handle": [
+                            {"handler": "static_response", "body": f"Acceso permitido a {ruta_add}"}
+                        ]
+                    }
+                    routes.append(new_route)
+                    user_config.json_data = data
+                    user_config.save()
+                    message = f"Ruta '{ruta_add}' añadida correctamente."
+            elif action == "delete":
+                ruta_delete = request.POST.get("ruta_delete")
+                new_routes = [r for r in routes if all(ruta_delete not in match.get("path", []) for match in r.get("match", []))]
+                if len(new_routes) < len(routes):
+                    data["apps"]["http"]["servers"]["Cloud_Guardian"]["routes"] = new_routes
+                    user_config.json_data = data
+                    user_config.save()
+                    message = f"Ruta '{ruta_delete}' eliminada correctamente."
+                else:
+                    message = "Ruta no encontrada."
+
+    except Exception as e:
+        message = "Error cargando configuración."
+
+    return render(request, "rutas_protegidas.html", {"message": message})
+
+
+
+""" 🔴  API ORIGINAL  🔴 """
 
 """ 🟢🟢🟢 REGISTRO DE USUARIOS 🟢🟢🟢"""
 
@@ -81,6 +229,7 @@ def register(request):
 
 """ 🔴🔴🔴 CLASE Y FUNCION PARA ELIMINAR USUARIOS DE LA BASE DE DATOS 🔴🔴🔴 """
 
+#  Eliminar usuarios
 class UserDelete(APIView): # definimos la clase para eliminar usuario
     def post(self, request): # definimos la funcion que recibe la peticion mediante el metodo post
         
@@ -109,7 +258,8 @@ class UserDelete(APIView): # definimos la clase para eliminar usuario
             return Response({"Contraseña maestra incorrecta, no puedes eliminar usuarios"}, status = status.HTTP_203_NON_AUTHORITATIVE_INFORMATION) # si fallas con la masterkey te aparecera esto
 
 """ LISTA DE USUARIOS PARA TESTEAR COSAS """   
-            
+
+#  Listar usuarios
 class listarUsers(APIView):
     def get(self, request):
         usersList = User.objects.values()
@@ -125,7 +275,7 @@ class listarUsers(APIView):
     
 
 """ 👋👋👋 FUNCIONES PARA INICIO DE SESION Y CIERRE DE SESION 👋👋👋 """
-
+# Login API
 @api_view(['POST']) # solo acepta peticiones POST.
 def login(request):  # ✅✅✅ Define la función login_view ✅✅✅
     
@@ -152,8 +302,10 @@ def login(request):  # ✅✅✅ Define la función login_view ✅✅✅
             "caddy_config": json_data
         }, status=status.HTTP_200_OK) # devuelve el token, el contenido del json y el codigo de estado 200
     
-    return Response({"error": "Credenciales incorrectas"}, status = status.HTTP_400_BAD_REQUEST) # si hay algun error devuelve un mensaje y un error 400
+    return Response({"error": "Credenciales incorrectas"}, status = status.HTTP_401_UNAUTHORIZED) # si hay algun error devuelve un mensaje y un error 400
 
+
+# Logout API
 @api_view(['POST']) # Solo permite peticiones POST
 def logout(request): # ❌❌❌ Define la funcion para cerrar sesion de usuario eliminando el token ❌❌❌
     
@@ -163,10 +315,6 @@ def logout(request): # ❌❌❌ Define la funcion para cerrar sesion de usuario
 
         if not token:
             return Response({'error': 'No se proporcionó token en la solicitud'}, status = status.HTTP_400_BAD_REQUEST) # si no existe e token lo decimos y mandamos un error 400
-
-        token = token.split(':')[1] # eliminar el prefijo 'Token:' del token que viene en el header.
-        token = token.replace('"', '') # reemplazamos las comillas por nada
-        token = token.replace(' ', '') # reemplazamos los espacios por nada
 
         # CORRECTO: quitar "Token " del principio
         token = token.replace("Token ", "").replace('"', '').strip()
@@ -182,6 +330,7 @@ def logout(request): # ❌❌❌ Define la funcion para cerrar sesion de usuario
 
 """ 🖥️🖥️🖥️ FUNCION PARA LEER O MODIFICAR EL JSON PARA VER O MODIFICAR SU CONFIGURACION 🖥️🖥️🖥️ """
 
+# Leer o modificar configuración caddy.json
 @api_view(['GET', 'PUT']) # configuramos la vista para manejar los métodos HTTP GET y PUT
 @authentication_classes([TokenAuthentication]) # es para autenticar el token automaticamente
 @permission_classes([IsAuthenticated]) # solo los autenticados pueden modificar, los demas solo lectura
@@ -197,11 +346,11 @@ def caddy_config_view(request): # definimos la funcion que va a leer o modificar
     except UserJSON.DoesNotExist:
         return Response({"error": "No se encontró configuración para este usuario."}, status=status.HTTP_404_NOT_FOUND) # si no existe devuelve esto
 
-    # 📖 Esta es la funcon para el GET 📖
+    # Esta es la funcion para el GET 
     if request.method == 'GET':
         return Response(user_config.json_data) # devuelve simplemente los datos de dentro del user_config
 
-    # ✏️ Esta es la funcion para el PUT ✏️
+    #  Esta es la funcion para el PUT 
     elif request.method == 'PUT':
         new_config = request.data # metemos la nueva configuracion en una variable, esta nueva configuracion la hemos obtenido de la peticion
 
@@ -213,9 +362,9 @@ def caddy_config_view(request): # definimos la funcion que va a leer o modificar
 
         return Response({"message": "Configuración actualizada correctamente."}, status=status.HTTP_200_OK) # si todo va bien devolvemos esto
         
-""" 🪪🪪🪪 CLASES PARA AÑADIR Y ELIMINAR IPS PERMITIDAS Y BLOQUEADAS 🪪🪪🪪 """
-        
-class AddIPs(APIView): # ✅ Esta es la clase para añadir ips al json ✅
+""" CLASES PARA AÑADIR Y ELIMINAR IPS PERMITIDAS Y BLOQUEADAS """
+# Añadir IPs
+class AddIPs(APIView): #  Esta es la clase para añadir ips al json 
     
     def post(self, request): # funcion que recibe una peticion mediante el metodo post
         
@@ -230,28 +379,25 @@ class AddIPs(APIView): # ✅ Esta es la clase para añadir ips al json ✅
                 ips_allow = data["apps"]["http"]["security"]["remote_ip"]["allow"] # lista de ips permitidas
                 ips_deny = data["apps"]["http"]["security"]["remote_ip"]["deny"] # lista de ips denegadas
                 
-                if not new_ips_allow and not new_ips_deny: # si no se añade ninguna ip para permitir ni bloquear devolvemos un mensaje y un codigo de estado 400
-                    return Response({"message":"No se ha añadido ninguna IP, vuelva a intentarlo."}, status = status.HTTP_400_BAD_REQUEST)
                 
-                if new_ips_allow in ips_allow and new_ips_deny in ips_deny: # si las ips ya estan en las listas de nuestro json devolvemos un msg y un codigo de estado 400
-                    return Response({"message":"Alguna de las ips añadidas ya existe, porfavor vuelve a revisarlo y añade ips que no esten añadidas"}, status = status.HTTP_400_BAD_REQUEST)
-                else:
-                    if new_ips_allow:
-                        ips_allow.append(new_ips_allow) # añadimos las permitidas si nos han pasado alguna
-                    if new_ips_deny:
-                        ips_deny.append(new_ips_deny) # añadimos las denegadas si nos han pasado alguna
+                if new_ips_allow:
+                    ips_allow.append(new_ips_allow)
+                    
+                if new_ips_deny:
+                    ips_deny.append(new_ips_deny)
                     
                     # Sobreescribir el archivo JSON con los nuevos datos
                     f.seek(0)  # Ir al inicio del archivo
                     json.dump(data, f, indent=4) # dumpeamos los datos
                     f.truncate()  # Ajustar el tamaño del archivo
                     
-                    return Response({"message": f"IPs permitidas: '{new_ips_allow}' y IPs denegadas '{new_ips_deny}' añadidas correctamente"}, status=status.HTTP_201_CREATED) # si todo sale bien devolvemos esto
+                    return Response({"message": "IPs añadidas correctamente"}, status=status.HTTP_201_CREATED) # si todo sale bien devolvemos esto
         except:
             
-            Response({"message":"Ha ocurrido un error al intentar añadir las ips"}, status = status.HTTP_500_INTERNAL_SERVER_ERROR) # si hay algun error en el proceso devolvemos esto
+            return Response({"error": "Error al añadir IPs"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR) # si hay algun error en el proceso devolvemos esto
 
-class DeleteIPs(APIView): # ❌ clase para eliminar ips ❌
+#  Eliminar IPs
+class DeleteIPs(APIView): #  clase para eliminar ips 
     
     def post(self, request): # funcion que decibe la peticion del cliente mediante el metodo post
         
@@ -290,8 +436,8 @@ class DeleteIPs(APIView): # ❌ clase para eliminar ips ❌
             Response({"message":"Ha ocurrido un error al intentar añadir las ips"}, status = status.HTTP_500_INTERNAL_SERVER_ERROR) # si ocurre otro error en el proceso devolvemos esto
             
 """ 🛤️🛤️🛤️ CREAMOS CLASE Y FUNCIONES PARA AÑADIR Y ELIMINAR RUTAS PROTEGIDAS 🛤️🛤️🛤️ """
-            
-class AddRoutes(APIView): # ✅ clase para añadir rutas protegidas ✅
+#  Añadir rutas protegidas
+class AddRoutes(APIView): #  clase para añadir rutas protegidas 
     
     def post(self, request):
         
@@ -352,7 +498,8 @@ class AddRoutes(APIView): # ✅ clase para añadir rutas protegidas ✅
         except:
             return Response({"error":"Ha ocurrido algún error en el proceso."}, status = status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-class DeleteRoutes(APIView): # ❌ clase para eliminar rutas protegidas ❌
+#  Eliminar rutas protegidas
+class DeleteRoutes(APIView): #  clase para eliminar rutas protegidas 
 
     def post(self, request): # definimos la funcion que recibe la peticion mediante el metodo post
         
